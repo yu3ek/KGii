@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>聚勢成ONE 共創凱壽
-    </title>
+    <title>聚勢成ONE 共創凱壽</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
     <style>
         :root {
@@ -54,7 +53,7 @@
             color: white;
             border-radius: 8px;
             box-sizing: border-box;
-            font-size: 1.1rem; /* 放大字體方便手機輸入 */
+            font-size: 1.1rem;
         }
 
         input:focus {
@@ -78,9 +77,7 @@
             transition: transform 0.1s;
         }
 
-        button:active {
-            transform: scale(0.98);
-        }
+        button:active { transform: scale(0.98); }
 
         button:disabled {
             background: #555;
@@ -104,6 +101,7 @@
             border: 1px solid #00ff00;
             border-radius: 8px;
             color: #00ff00;
+            line-height: 1.6;
         }
     </style>
 </head>
@@ -111,11 +109,19 @@
 
     <h2>聚勢成ONE 共創凱壽</h2>
 
+    <!-- 新增：通訊處 -->
     <div class="input-group">
-        <label for="name">通訊處 / 姓名</label>
-        <input type="text" id="name" placeholder="例如：北一 / 王小明">
+        <label for="branch">通訊處</label>
+        <input type="text" id="branch" placeholder="例如：北一通訊處">
     </div>
 
+    <!-- 新增：姓名 -->
+    <div class="input-group">
+        <label for="name">姓名</label>
+        <input type="text" id="name" placeholder="例如：王小明">
+    </div>
+
+    <!-- 原本：祝福內容 -->
     <div class="input-group">
         <label for="msg">願景祝福 (30字內)</label>
         <input type="text" id="msg" maxlength="30" placeholder="寫下對公司的期許...">
@@ -124,7 +130,7 @@
     <button id="sendBtn" onclick="sendMessage()">✨ 發送祝福光點</button>
 
     <div class="success-msg" id="successMsg">
-        發送成功！請看大螢幕 🎉
+        發送成功！請看大螢幕 🎉<br>
         若現場訊息較多，可能稍有延遲
     </div>
 
@@ -132,17 +138,16 @@
 
     <script>
         // === MQTT 設定 (必須與大螢幕端完全一致) ===
-	const broker = "broker.emqx.io";
-        const port = 8084; // 改成 8084
-        const topic = "kgi_event_2025_live_demo_vtaco"; // 請確認跟大螢幕一樣
+        const broker = "broker.emqx.io";
+        const port = 8084;
+        const topic = "kgi_event_2025_live_demo_vtaco";
         const clientID = "sender_" + new Date().getTime();
 
         const client = new Paho.MQTT.Client(broker, port, clientID);
         let isConnected = false;
 
-        // 連線
         client.connect({
-            useSSL: true, // 開啟加密連線
+            useSSL: true,
             onSuccess: function () {
                 console.log("連線成功");
                 document.getElementById('status').innerText = "🟢 已連線，請輸入祝福";
@@ -155,6 +160,7 @@
         });
 
         function sendMessage() {
+            const branch = document.getElementById('branch').value.trim();
             const name = document.getElementById('name').value.trim();
             const msg = document.getElementById('msg').value.trim();
             const btn = document.getElementById('sendBtn');
@@ -163,14 +169,22 @@
                 alert("尚未連線，請稍後再試！");
                 return;
             }
-            if (!name || !msg) {
-                alert("請完整填寫姓名與祝福內容喔！");
+            if (!branch || !name || !msg) {
+                alert("請完整填寫通訊處、姓名與祝福內容喔！");
                 return;
             }
 
+            // 兼容用：displayName 讓舊版 output 仍可用 data.name 顯示
+            const displayName = `${branch} / ${name}`;
+
             // 打包成 JSON
-            const payload = JSON.stringify({ name: name, msg: msg });
-            
+            const payload = JSON.stringify({
+                branch: branch,
+                name: name,
+                msg: msg,
+                displayName: displayName
+            });
+
             try {
                 const message = new Paho.MQTT.Message(payload);
                 message.destinationName = topic;
@@ -179,16 +193,16 @@
                 // UI 回饋
                 btn.disabled = true;
                 btn.innerText = "發送中...";
-                
+
                 setTimeout(() => {
                     document.getElementById('successMsg').style.display = 'block';
+                    document.getElementById('branch').value = '';
                     document.getElementById('name').value = '';
                     document.getElementById('msg').value = '';
-                    
+
                     btn.innerText = "✨ 再次發送";
                     btn.disabled = false;
 
-                    // 3秒後隱藏成功訊息
                     setTimeout(() => {
                         document.getElementById('successMsg').style.display = 'none';
                     }, 3000);
@@ -201,5 +215,4 @@
         }
     </script>
 </body>
-
 </html>

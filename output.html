@@ -622,7 +622,7 @@
                 const cleanup = () => { el.remove(); resolve(); };
                 el.addEventListener('animationend', cleanup, { once: true });
 
-                setTimeout(cleanup, MARQUEE_DURATION_MS + 800);
+                setTimeout(cleanup, MARQUEE_DURATION_MS + 300);
             });
         }
 

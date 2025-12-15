@@ -526,7 +526,9 @@
                 ], { duration: 800 + Math.random() * 400, easing: 'cubic-bezier(0.25, 1, 0.5, 1)' }).onfinish = () => p.remove();
             }
 
-            return new Promise.resolve();
+            return new Promise((resolve) => {
+                setTimeout(resolve, isVip ? FX_DURATION_VIP_MS : FX_DURATION_NORMAL_MS);
+            });
         }
 
         function triggerTextAwakening() {

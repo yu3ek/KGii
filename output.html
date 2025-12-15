@@ -348,7 +348,6 @@
 
         function initBuilding() {
             building.innerHTML = '';
-            // 若未來需要重置顯示，這些清掉可避免 pieces 累積
             pieces.length = 0;
             totalPieces = 0;
             filledCount = 0;
@@ -468,10 +467,10 @@
             return vipIndices[0];
         }
 
-        // === 串場節奏設定（你要的每筆約 5 秒）===
-        const MARQUEE_DURATION_MS = 2000;
-        const FX_DURATION_NORMAL_MS = 00;
-        const FX_DURATION_VIP_MS = 700;
+        // === 串場節奏設定 ===
+        const MARQUEE_DURATION_MS = 5000;   // 每筆跑馬燈約 5 秒
+        const FX_DURATION_NORMAL_MS = 1400;
+        const FX_DURATION_VIP_MS = 1700;
 
         function triggerEnergyExplosion(targetElement, isVip = false, colorHex) {
             const rect = targetElement.getBoundingClientRect();
@@ -527,7 +526,6 @@
                 ], { duration: 800 + Math.random() * 400, easing: 'cubic-bezier(0.25, 1, 0.5, 1)' }).onfinish = () => p.remove();
             }
 
-            // ✅ 回傳：這筆爆炸特效播完（保守值，避免重疊）
             return new Promise((resolve) => {
                 setTimeout(resolve, isVip ? FX_DURATION_VIP_MS : FX_DURATION_NORMAL_MS);
             });
@@ -586,7 +584,7 @@
             setTimeout(() => { clickCount = 0; }, 2000);
         }
 
-        // ✅ 跑馬燈：改成 Promise（等動畫結束才算這筆完成）
+        // ✅ 跑馬燈：Promise（等動畫結束才算完成）
         function showMarquee(text, isVip = false) {
             return new Promise((resolve) => {
                 const container = document.getElementById('marqueeArea');
@@ -597,7 +595,7 @@
                 const colors = ['#fff', '#ffd700', '#7df9ff', '#ffb74d'];
                 el.style.borderColor = colors[Math.floor(Math.random() * colors.length)];
 
-                // 覆蓋原本 15s，改成每筆 5s
+                // 覆蓋原本 15s，改成每筆 5s（用 MARQUEE_DURATION_MS 控制）
                 el.style.animationDuration = `${MARQUEE_DURATION_MS / 1000}s`;
 
                 if (isVip) {
@@ -661,7 +659,7 @@
             queueRunning = false;
         }
 
-        // ✅ 順序版：等爆炸 + 跑馬燈完成才進下一筆（整體約 5 秒）
+        // ✅ 順序版：格子未滿 -> 爆炸+跑馬燈；格子滿了 -> 只跑馬燈（不填格子、不爆炸）
         async function onMessageReceivedSequential(name, msg, data) {
             const now = new Date();
             const timeStr = now.getHours().toString().padStart(2, '0') + ':' +
@@ -673,6 +671,7 @@
 
             const isVipUser = (data && data.isVip === true);
 
+            // VIP 狀態觸發邏輯（保留）
             if (isVipUser) {
                 if (data.vipRole === 'chairman') vipStatus.chairman = true;
                 if (data.vipRole === 'gm') vipStatus.gm = true;
@@ -685,8 +684,13 @@
                 }
             }
 
-            if (filledCount >= totalPieces) return;
+            // ★★★ 核心改動：格子滿了後「只跑跑馬燈」，不再填格子、不爆炸 ★★★
+            if (filledCount >= totalPieces) {
+                await showMarquee(`${name}：${msg}`, isVipUser);
+                return;
+            }
 
+            // ====== 下面維持你原本的填格子 + 爆炸 + 跑馬燈 ======
             let targetIndex = -1;
             let finalColorHex = '#ffffff';
 

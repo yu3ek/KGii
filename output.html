@@ -265,11 +265,14 @@
             border-color: #fff; color: #000; text-shadow: none;
             box-shadow: 0 0 50px #ffd700; z-index: 300 !important; transform: scale(1.2);
         }
+
+        /* ✅ 重點：把「10% 才顯示」改成「2% 就顯示」，避免你覺得下一筆晚出現 */
         @keyframes flyToTop {
-            0% { bottom: -150px; opacity: 0; transform: scale(0.5) rotate(-5deg); }
-            10% { opacity: 1; transform: scale(1.2) rotate(0deg); }
-            20% { transform: scale(1); }
-            80% { opacity: 1; }
+            0%   { bottom: -150px; opacity: 0; transform: scale(0.5) rotate(-5deg); }
+            2%   { opacity: 1; }
+            10%  { transform: scale(1.2) rotate(0deg); }
+            20%  { transform: scale(1); }
+            80%  { opacity: 1; }
             100% { bottom: 120%; opacity: 0; transform: scale(1.5) translateY(-100px); }
         }
     </style>
@@ -467,10 +470,13 @@
             return vipIndices[0];
         }
 
-        // === 串場節奏設定 ===
-        const MARQUEE_DURATION_MS = 5000;   // 每筆跑馬燈 5 秒
+        // ====== 你要調節的節奏參數 ======
+        const MARQUEE_DURATION_MS = 5000;  // 每筆跑馬燈持續時間（5秒）
+        const QUEUE_GAP_MS = 500;          // 每筆結束後、下一筆開始前的間隔（0.5秒）
         const FX_DURATION_NORMAL_MS = 2000;
         const FX_DURATION_VIP_MS = 1700;
+
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
         function triggerEnergyExplosion(targetElement, isVip = false, colorHex) {
             const rect = targetElement.getBoundingClientRect();
@@ -584,7 +590,7 @@
             setTimeout(() => { clickCount = 0; }, 2000);
         }
 
-        // ✅ 跑馬燈：Promise（等動畫結束才算完成）
+        // ✅ 跑馬燈：等這筆動畫結束才 resolve（不留多餘緩衝）
         function showMarquee(text, isVip = false) {
             return new Promise((resolve) => {
                 const container = document.getElementById('marqueeArea');
@@ -619,10 +625,15 @@
 
                 container.appendChild(el);
 
-                const cleanup = () => { el.remove(); resolve(); };
+                const cleanup = () => {
+                    el.remove();
+                    resolve();
+                };
+
                 el.addEventListener('animationend', cleanup, { once: true });
 
-                setTimeout(cleanup, MARQUEE_DURATION_MS + 300);
+                // 保底：真的沒觸發 animationend 才用（縮短到 +200 避免多等）
+                setTimeout(cleanup, MARQUEE_DURATION_MS + 200);
             });
         }
 
@@ -657,9 +668,7 @@
             queueRunning = false;
         }
 
-        // ✅ 順序版：
-        // - 有格子可填：填格子 + 爆炸 + 跑馬燈
-        // - 沒格子可填（targetIndex === -1）或 filledCount >= totalPieces：只跑馬燈（右欄照常）
+        // ✅ 順序版：格子未滿 -> 爆炸+跑馬燈；格子滿了 -> 只跑馬燈（不填格子、不爆炸）
         async function onMessageReceivedSequential(name, msg, data) {
             const now = new Date();
             const timeStr = now.getHours().toString().padStart(2, '0') + ':' +
@@ -671,7 +680,6 @@
 
             const isVipUser = (data && data.isVip === true);
 
-            // VIP 狀態觸發邏輯（保留）
             if (isVipUser) {
                 if (data.vipRole === 'chairman') vipStatus.chairman = true;
                 if (data.vipRole === 'gm') vipStatus.gm = true;
@@ -684,13 +692,13 @@
                 }
             }
 
-            // 保守：若你用 filledCount 判定已滿，也直接只跑跑馬燈
+            // 格子滿了：只跑馬燈 + 0.5 秒間隔
             if (filledCount >= totalPieces) {
                 await showMarquee(`${name}：${msg}`, isVipUser);
+                await sleep(QUEUE_GAP_MS);
                 return;
             }
 
-            // 嘗試找可填的格子
             let targetIndex = -1;
             let finalColorHex = '#ffffff';
 
@@ -707,27 +715,25 @@
                 }
             }
 
-            // ✅ 核心修正：只要 targetIndex 找不到（= 沒格子可填），仍然要跑跑馬燈
-            if (targetIndex === -1) {
-                await showMarquee(`${name}：${msg}`, isVipUser);
-                return;
-            }
+            if (targetIndex !== -1) {
+                const targetPiece = pieces[targetIndex];
+                targetPiece.classList.add('active');
+                filledCount++;
 
-            // 有格子可填：照原本流程
-            const targetPiece = pieces[targetIndex];
-            targetPiece.classList.add('active');
-            filledCount++;
+                await Promise.all([
+                    triggerEnergyExplosion(targetPiece, isVipUser, finalColorHex),
+                    showMarquee(`${name}：${msg}`, isVipUser)
+                ]);
 
-            await Promise.all([
-                triggerEnergyExplosion(targetPiece, isVipUser, finalColorHex),
-                showMarquee(`${name}：${msg}`, isVipUser)
-            ]);
+                // ✅ 你要的：每筆結束後留 0.5 秒空白再進下一筆
+                await sleep(QUEUE_GAP_MS);
 
-            if (filledCount === totalPieces) {
-                setTimeout(() => {
-                    document.getElementById('finalSlogan').style.opacity = 1;
-                    triggerCompletionEffect();
-                }, 500);
+                if (filledCount === totalPieces) {
+                    setTimeout(() => {
+                        document.getElementById('finalSlogan').style.opacity = 1;
+                        triggerCompletionEffect();
+                    }, 500);
+                }
             }
         }
 

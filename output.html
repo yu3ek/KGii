@@ -265,14 +265,11 @@
             border-color: #fff; color: #000; text-shadow: none;
             box-shadow: 0 0 50px #ffd700; z-index: 300 !important; transform: scale(1.2);
         }
-
-        /* ✅ 重點：把「10% 才顯示」改成「2% 就顯示」，避免你覺得下一筆晚出現 */
         @keyframes flyToTop {
-            0%   { bottom: -150px; opacity: 0; transform: scale(0.5) rotate(-5deg); }
-            2%   { opacity: 1; }
-            10%  { transform: scale(1.2) rotate(0deg); }
-            20%  { transform: scale(1); }
-            80%  { opacity: 1; }
+            0% { bottom: -150px; opacity: 0; transform: scale(0.5) rotate(-5deg); }
+            10% { opacity: 1; transform: scale(1.2) rotate(0deg); }
+            20% { transform: scale(1); }
+            80% { opacity: 1; }
             100% { bottom: 120%; opacity: 0; transform: scale(1.5) translateY(-100px); }
         }
     </style>
@@ -470,13 +467,11 @@
             return vipIndices[0];
         }
 
-        // ====== 你要調節的節奏參數 ======
-        const MARQUEE_DURATION_MS = 2000;  // 每筆跑馬燈持續時間（5秒）
-        const QUEUE_GAP_MS = 50;          // 每筆結束後、下一筆開始前的間隔（0.5秒）
-        const FX_DURATION_NORMAL_MS = 1000;
-        const FX_DURATION_VIP_MS = 1700;
-
-        const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+        // === 串場節奏設定 ===
+        const MARQUEE_DURATION_MS = 5000;     // 每筆跑馬燈時間（建議 5000）
+        const FX_DURATION_NORMAL_MS = 1400;   // 一般爆炸特效保守等待
+        const FX_DURATION_VIP_MS = 1700;      // VIP 爆炸特效保守等待
+        const MESSAGE_GAP_MS = 500;           // ✅ 每筆與下一筆之間的間隔（你要 0.5 秒）
 
         function triggerEnergyExplosion(targetElement, isVip = false, colorHex) {
             const rect = targetElement.getBoundingClientRect();
@@ -553,21 +548,21 @@
             slogan.style.opacity = 1;
         }
 
-        function addToSidebar(name, msg) {
+        function addToSidebar(displayName, msg) {
             const list = document.getElementById('messageList');
             const card = document.createElement('div');
             card.classList.add('msg-card');
             const now = new Date();
-            card.innerHTML = `<div class="msg-name">${name}<span class="msg-time">${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}</span></div><div class="msg-content">${msg}</div>`;
+            card.innerHTML = `<div class="msg-name">${displayName}<span class="msg-time">${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}</span></div><div class="msg-content">${msg}</div>`;
             list.insertBefore(card, list.firstChild);
         }
 
         function exportToCSV() {
             if (blessingHistory.length === 0) { alert("無資料可下載"); return; }
-            let csvContent = "\uFEFF發送時間,姓名/單位,祝福內容\n";
+            let csvContent = "\uFEFF發送時間,通訊處/姓名,祝福內容\n";
             blessingHistory.forEach(item => {
-                const cleanName = item.name.replace(/,/g, "，");
-                const cleanMsg = item.msg.replace(/,/g, "，");
+                const cleanName = (item.name || '').replace(/,/g, "，");
+                const cleanMsg = (item.msg || '').replace(/,/g, "，");
                 csvContent += `${item.time},${cleanName},${cleanMsg}\n`;
             });
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -590,7 +585,6 @@
             setTimeout(() => { clickCount = 0; }, 2000);
         }
 
-        // ✅ 跑馬燈：等這筆動畫結束才 resolve（不留多餘緩衝）
         function showMarquee(text, isVip = false) {
             return new Promise((resolve) => {
                 const container = document.getElementById('marqueeArea');
@@ -625,15 +619,9 @@
 
                 container.appendChild(el);
 
-                const cleanup = () => {
-                    el.remove();
-                    resolve();
-                };
-
+                const cleanup = () => { el.remove(); resolve(); };
                 el.addEventListener('animationend', cleanup, { once: true });
-
-                // 保底：真的沒觸發 animationend 才用（縮短到 +200 避免多等）
-                setTimeout(cleanup, MARQUEE_DURATION_MS + 200);
+                setTimeout(cleanup, MARQUEE_DURATION_MS + 800);
             });
         }
 
@@ -652,9 +640,12 @@
             });
         }
 
-        // === 串場佇列：一筆播完才下一筆 ===
         const messageQueue = [];
         let queueRunning = false;
+
+        async function sleep(ms) {
+            return new Promise(r => setTimeout(r, ms));
+        }
 
         async function processQueue() {
             if (queueRunning) return;
@@ -662,21 +653,22 @@
 
             while (messageQueue.length > 0) {
                 const data = messageQueue.shift();
-                await onMessageReceivedSequential(data.name, data.msg, data);
+                await onMessageReceivedSequential(data.displayName, data.msg, data);
+                if (MESSAGE_GAP_MS > 0) await sleep(MESSAGE_GAP_MS);
             }
 
             queueRunning = false;
         }
 
-        // ✅ 順序版：格子未滿 -> 爆炸+跑馬燈；格子滿了 -> 只跑馬燈（不填格子、不爆炸）
-        async function onMessageReceivedSequential(name, msg, data) {
+        async function onMessageReceivedSequential(displayName, msg, data) {
             const now = new Date();
             const timeStr = now.getHours().toString().padStart(2, '0') + ':' +
                             now.getMinutes().toString().padStart(2, '0') + ':' +
                             now.getSeconds().toString().padStart(2, '0');
 
-            blessingHistory.push({ time: timeStr, name: name, msg: msg });
-            addToSidebar(name, msg);
+            // CSV/歷史：存「通訊處/姓名」的最終顯示字串（最穩定）
+            blessingHistory.push({ time: timeStr, name: displayName, msg: msg });
+            addToSidebar(displayName, msg);
 
             const isVipUser = (data && data.isVip === true);
 
@@ -692,10 +684,9 @@
                 }
             }
 
-            // 格子滿了：只跑馬燈 + 0.5 秒間隔
+            // ✅ 格子滿了：只跑跑馬燈（仍會顯示）
             if (filledCount >= totalPieces) {
-                await showMarquee(`${name}：${msg}`, isVipUser);
-                await sleep(QUEUE_GAP_MS);
+                await showMarquee(`${displayName}：${msg}`, isVipUser);
                 return;
             }
 
@@ -722,11 +713,8 @@
 
                 await Promise.all([
                     triggerEnergyExplosion(targetPiece, isVipUser, finalColorHex),
-                    showMarquee(`${name}：${msg}`, isVipUser)
+                    showMarquee(`${displayName}：${msg}`, isVipUser)
                 ]);
-
-                // ✅ 你要的：每筆結束後留 0.5 秒空白再進下一筆
-                await sleep(QUEUE_GAP_MS);
 
                 if (filledCount === totalPieces) {
                     setTimeout(() => {
@@ -751,12 +739,24 @@
             setTimeout(connectMQTT, 2000);
         };
 
+        // ✅ 收到訊息：解析 office/name/msg → 組 displayName → 入隊列（向下相容）
         client.onMessageArrived = function (msg) {
             try {
                 const data = JSON.parse(msg.payloadString);
+
+                const office = (data.office || "").trim();
+                const name = (data.name || "").trim();
+                const msgText = (data.msg || "").trim();
+
+                // 向下相容：舊版只有 name/msg 也能顯示
+                data.displayName = office ? `${office} / ${name}` : name;
+                data.msg = msgText;
+
                 messageQueue.push(data);
                 processQueue();
-            } catch (e) { console.error(e); }
+            } catch (e) {
+                console.error("訊息解析失敗", e);
+            }
         };
 
         function connectMQTT() {

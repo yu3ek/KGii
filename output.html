@@ -468,7 +468,7 @@
         }
 
         // === 串場節奏設定 ===
-        const MARQUEE_DURATION_MS = 2000;   // 每筆跑馬燈約 5 秒
+        const MARQUEE_DURATION_MS = 5000;   // 每筆跑馬燈 5 秒
         const FX_DURATION_NORMAL_MS = 2000;
         const FX_DURATION_VIP_MS = 1700;
 
@@ -595,7 +595,6 @@
                 const colors = ['#fff', '#ffd700', '#7df9ff', '#ffb74d'];
                 el.style.borderColor = colors[Math.floor(Math.random() * colors.length)];
 
-                // 覆蓋原本 15s，改成每筆 5s（用 MARQUEE_DURATION_MS 控制）
                 el.style.animationDuration = `${MARQUEE_DURATION_MS / 1000}s`;
 
                 if (isVip) {
@@ -623,7 +622,6 @@
                 const cleanup = () => { el.remove(); resolve(); };
                 el.addEventListener('animationend', cleanup, { once: true });
 
-                // 保底：避免 animationend 沒觸發造成卡住
                 setTimeout(cleanup, MARQUEE_DURATION_MS + 800);
             });
         }
@@ -659,7 +657,9 @@
             queueRunning = false;
         }
 
-        // ✅ 順序版：格子未滿 -> 爆炸+跑馬燈；格子滿了 -> 只跑馬燈（不填格子、不爆炸）
+        // ✅ 順序版：
+        // - 有格子可填：填格子 + 爆炸 + 跑馬燈
+        // - 沒格子可填（targetIndex === -1）或 filledCount >= totalPieces：只跑馬燈（右欄照常）
         async function onMessageReceivedSequential(name, msg, data) {
             const now = new Date();
             const timeStr = now.getHours().toString().padStart(2, '0') + ':' +
@@ -684,13 +684,13 @@
                 }
             }
 
-            // ★★★ 核心改動：格子滿了後「只跑跑馬燈」，不再填格子、不爆炸 ★★★
+            // 保守：若你用 filledCount 判定已滿，也直接只跑跑馬燈
             if (filledCount >= totalPieces) {
                 await showMarquee(`${name}：${msg}`, isVipUser);
                 return;
             }
 
-            // ====== 下面維持你原本的填格子 + 爆炸 + 跑馬燈 ======
+            // 嘗試找可填的格子
             let targetIndex = -1;
             let finalColorHex = '#ffffff';
 
@@ -707,22 +707,27 @@
                 }
             }
 
-            if (targetIndex !== -1) {
-                const targetPiece = pieces[targetIndex];
-                targetPiece.classList.add('active');
-                filledCount++;
+            // ✅ 核心修正：只要 targetIndex 找不到（= 沒格子可填），仍然要跑跑馬燈
+            if (targetIndex === -1) {
+                await showMarquee(`${name}：${msg}`, isVipUser);
+                return;
+            }
 
-                await Promise.all([
-                    triggerEnergyExplosion(targetPiece, isVipUser, finalColorHex),
-                    showMarquee(`${name}：${msg}`, isVipUser)
-                ]);
+            // 有格子可填：照原本流程
+            const targetPiece = pieces[targetIndex];
+            targetPiece.classList.add('active');
+            filledCount++;
 
-                if (filledCount === totalPieces) {
-                    setTimeout(() => {
-                        document.getElementById('finalSlogan').style.opacity = 1;
-                        triggerCompletionEffect();
-                    }, 500);
-                }
+            await Promise.all([
+                triggerEnergyExplosion(targetPiece, isVipUser, finalColorHex),
+                showMarquee(`${name}：${msg}`, isVipUser)
+            ]);
+
+            if (filledCount === totalPieces) {
+                setTimeout(() => {
+                    document.getElementById('finalSlogan').style.opacity = 1;
+                    triggerCompletionEffect();
+                }, 500);
             }
         }
 
@@ -740,7 +745,6 @@
             setTimeout(connectMQTT, 2000);
         };
 
-        // ✅ 收到訊息：只入隊列，不直接顯示（避免重疊）
         client.onMessageArrived = function (msg) {
             try {
                 const data = JSON.parse(msg.payloadString);

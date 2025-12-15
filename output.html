@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>聚勢成ONE 共創凱壽</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #000510;
+            --neon-cyan: #00ffff;
+            --sidebar-bg: rgba(3, 10, 20, 0.9);
+
+            --kgi-blue: #00479d;
+            --kgi-orange: #f58025;
+            --kgi-green: #5cba46;
+            --kgi-white: #ffffff;
+            --vip-gold: #ffd700;
+
+            --grid-size: min(8.2vh, 8.2vw);
+        }
+
+        body {
+            margin: 0; padding: 0;
+            background-color: var(--bg-color);
+            color: white;
+            font-family: "Microsoft JhengHei", sans-serif;
+            height: 100vh; overflow: hidden;
+        }
+
+        #vip-flash-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: white; opacity: 0; pointer-events: none; z-index: 9999;
+            transition: opacity 0.1s;
+        }
+        .flash-active { opacity: 0.8 !important; }
+        .flash-soft { opacity: 0.3 !important; transition: opacity 1s !important; }
+
+        .screen-shake {
+            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+            transform: translate3d(0, 0, 0);
+            backface-visibility: hidden;
+        }
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-2px, 1px, 0); }
+            20%, 80% { transform: translate3d(3px, -2px, 0); }
+            30%, 50%, 70% { transform: translate3d(-5px, 3px, 0); }
+            40%, 60% { transform: translate3d(5px, -4px, 0); }
+        }
+
+        #particles-js {
+            position: absolute; width: 100%; height: 100%;
+            background: radial-gradient(ellipse at bottom, #0c2441 0%, #000000 80%);
+            z-index: 1; overflow: hidden; pointer-events: none;
+        }
+        .warp-star {
+            position: absolute; width: 4px; height: 4px; background: var(--neon-cyan);
+            border-radius: 50%; opacity: 0; box-shadow: 0 0 10px var(--neon-cyan);
+            animation: warpSpeed var(--duration) linear infinite; animation-delay: var(--delay);
+        }
+        @keyframes warpSpeed {
+            0% { opacity: 0; transform: translateY(0) scale(0.5); }
+            10% { opacity: 1; }
+            100% { opacity: 0; transform: translateY(-100vh) scale(5); height: 100px; }
+        }
+
+        .layout-wrapper { display: flex; width: 100%; height: 100%; position: relative; z-index: 10; }
+
+        .main-display {
+            flex: 3; position: relative;
+            display: flex; justify-content: center; align-items: center;
+            background-image: linear-gradient(transparent 50%, rgba(0, 0, 0, 0.5) 50%), radial-gradient(transparent, black);
+            background-size: 10px 10px, 100% 100%;
+            perspective: 1200px; perspective-origin: 50% 90%;
+            overflow: hidden;
+        }
+
+        .title {
+            position: absolute;
+            top: 3vh;
+            width: 100%; text-align: center;
+            font-size: 3.5rem;
+            color: rgba(255, 255, 255, 0.3);
+            text-shadow: 0 0 10px rgba(0, 71, 157, 0.5);
+            letter-spacing: 12px; font-weight: 900; z-index: 20;
+            transition: all 1s ease-out;
+            transform: scale(0.9);
+        }
+
+        .slogan {
+            position: absolute; bottom: 3vh; width: 100%; text-align: center;
+            font-size: 2.2rem; font-weight: bold; z-index: 20;
+            color: rgba(255, 255, 255, 0.3);
+            text-shadow: none;
+            opacity: 0; transition: opacity 1s; pointer-events: none;
+        }
+
+        .cinematic-gold {
+            opacity: 1 !important;
+            transform: scale(1.1) !important;
+            color: transparent !important;
+
+            background: linear-gradient(
+                110deg,
+                #b8860b 10%,
+                #ffd700 30%,
+                #ffffff 50%,
+                #ffd700 70%,
+                #b8860b 90%
+            );
+            background-size: 200% auto;
+            -webkit-background-clip: text !important;
+            background-clip: text !important;
+
+            filter: drop-shadow(0 0 5px #ffd700) drop-shadow(0 0 20px #ff8c00) drop-shadow(0 5px 15px black);
+
+            animation:
+                cinematicEntrance 1s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards,
+                liquidFlow 3s linear infinite !important;
+        }
+
+        @keyframes cinematicEntrance {
+            0% { transform: scale(3) translateY(-50px); opacity: 0; letter-spacing: 50px; filter: blur(20px); }
+            100% { transform: scale(1.1) translateY(0); opacity: 1; letter-spacing: 12px; filter: blur(0); }
+        }
+
+        @keyframes liquidFlow {
+            0% { background-position: 0% center; }
+            100% { background-position: 200% center; }
+        }
+
+        .building-wrapper {
+            position: relative; padding: 0; border: none; box-shadow: none; z-index: 10;
+            transform: rotateX(15deg) translateY(20px);
+            transform-style: preserve-3d;
+            display: flex; justify-content: center; align-items: center;
+            transition: transform 2s ease-in-out;
+        }
+        .building-dimmed {
+            filter: brightness(0.7);
+            transform: rotateX(15deg) translateY(20px) translateZ(-50px) !important;
+        }
+
+        .building-grid { display: grid; gap: 0.5vh; margin: 0 auto; }
+
+        .piece {
+            width: var(--grid-size); height: var(--grid-size);
+            background-color: rgba(0, 15, 30, 0.6);
+            border: 1px solid rgba(0, 150, 255, 0.2);
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+            border-radius: 4px; position: relative;
+            animation: unstableEnergy 0.8s infinite alternate steps(5);
+            transition: transform 0.3s;
+        }
+        .piece:nth-child(odd) { animation-delay: 0.2s; } .piece:nth-child(3n) { animation-duration: 1.2s; }
+        @keyframes unstableEnergy {
+            0% { border-color: rgba(0, 150, 255, 0.2); }
+            100% { border-color: rgba(0, 255, 255, 0.4); box-shadow: inset 0 0 10px var(--kgi-blue); }
+        }
+        .spacer { width: var(--grid-size); height: var(--grid-size); background: transparent; pointer-events: none; }
+
+        .piece.vip-star {
+            background: linear-gradient(135deg, #bf953f, #fcf6ba, #b38728, #fbf5b7, #aa771c);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+            transform: scale(1.1); filter: drop-shadow(0 0 5px rgba(255, 215, 0, 0.5));
+        }
+
+        .piece.active {
+            z-index: 100; transform: scale(1.1) translateZ(6vh);
+            animation: activePlasma 0.5s infinite alternate !important;
+            border-width: 0 !important;
+        }
+
+        .piece.vip-star.active {
+            background: radial-gradient(circle, #fff, #ffd700, #ff8c00) !important;
+            filter: drop-shadow(0 0 10px #ffd700);
+            z-index: 300;
+            animation: starBreath 3s infinite ease-in-out !important;
+        }
+        @keyframes starBreath {
+            0% { transform: scale(2.0) translateZ(20vh) translateY(-2vh); filter: drop-shadow(0 0 15px #ffd700); }
+            50% { transform: scale(2.3) translateZ(25vh) translateY(-2vh); filter: drop-shadow(0 0 40px #ffd700) drop-shadow(0 0 60px #fff); }
+            100% { transform: scale(2.0) translateZ(20vh) translateY(-2vh); filter: drop-shadow(0 0 15px #ffd700); }
+        }
+
+        .c-blue { background: var(--kgi-blue) !important; box-shadow: 0 0 30px var(--kgi-blue); }
+        .c-orange { background: var(--kgi-orange) !important; box-shadow: 0 0 30px var(--kgi-orange); }
+        .c-green { background: var(--kgi-green) !important; box-shadow: 0 0 30px var(--kgi-green); }
+        .c-white { background: var(--kgi-white) !important; box-shadow: 0 0 30px #ffffff; }
+
+        .split-diag-orange-blue { background: linear-gradient(45deg, var(--kgi-blue) 50%, var(--kgi-orange) 50%) !important; box-shadow: 0 0 30px var(--kgi-orange); }
+        .split-diag-white-blue { background: linear-gradient(135deg, var(--kgi-white) 50%, var(--kgi-blue) 50%) !important; box-shadow: 0 0 30px var(--kgi-blue); }
+        .split-blue-orange-diag { background: linear-gradient(135deg, var(--kgi-blue) 48%, var(--kgi-orange) 52%) !important; }
+        .split-blue-green-diag { background: linear-gradient(45deg, var(--kgi-blue) 48%, var(--kgi-green) 52%) !important; }
+        .split-horz-blue-orange { background: linear-gradient(to bottom, var(--kgi-blue) 50%, var(--kgi-orange) 50%) !important; }
+        .split-horz-blue-white { background: linear-gradient(to bottom, var(--kgi-blue) 50%, var(--kgi-white) 50%) !important; }
+        .split-vert-orange-white { background: linear-gradient(to right, var(--kgi-orange) 50%, var(--kgi-white) 50%) !important; }
+        .split-vert-orange-blue { background: linear-gradient(to right, var(--kgi-orange) 50%, var(--kgi-blue) 50%) !important; }
+        .split-special-center { background: conic-gradient(from 0deg at 50% 50%, var(--kgi-blue) 0% 25%, var(--kgi-white) 25% 50%, var(--kgi-orange) 50% 100%) !important; box-shadow: 0 0 30px var(--kgi-white); }
+
+        @keyframes activePlasma { from { filter: brightness(1); } to { filter: brightness(1.2) contrast(1.1); } }
+
+        .explosion-particle {
+            position: absolute; width: 12px; height: 12px; background: #ffffff; border-radius: 50%;
+            box-shadow: 0 0 20px var(--color); pointer-events: none; z-index: 9999;
+        }
+        .massive-shockwave {
+            position: absolute; width: 0; height: 0; border-radius: 50%; background: transparent;
+            border: 50px solid #ffffff; opacity: 1; transform: translate(-50%, -50%); pointer-events: none; z-index: 9998;
+        }
+
+        .sidebar {
+            flex: 1; background: rgba(5, 15, 30, 0.85); border-left: 3px solid var(--kgi-blue);
+            box-shadow: -20px 0 50px rgba(0, 100, 255, 0.2); display: flex; flex-direction: column; z-index: 50; backdrop-filter: blur(20px);
+        }
+        .sidebar-header {
+            padding: 25px; background: linear-gradient(90deg, var(--kgi-blue), transparent);
+            border-bottom: 2px solid var(--neon-cyan); text-align: center; cursor: pointer; user-select: none;
+        }
+        .sidebar-header h2 {
+            margin: 0; color: #ffffff; font-size: 1.8rem; letter-spacing: 3px;
+            text-shadow: 0 0 15px var(--kgi-orange); font-style: italic;
+        }
+        .message-list { flex: 1; overflow-y: auto; padding: 20px; scroll-behavior: smooth; }
+        .msg-card {
+            background: linear-gradient(110deg, rgba(0, 50, 150, 0.3), rgba(0, 0, 0, 0.5));
+            border: 1px solid var(--kgi-blue); border-left: 5px solid var(--kgi-orange);
+            border-radius: 4px; padding: 15px; margin-bottom: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5); position: relative; overflow: hidden;
+            animation: slideInRight 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .msg-card::before {
+            content: ''; position: absolute; top: 0; left: -150%; width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            transform: skewX(-20deg); animation: cardShine 3s infinite;
+        }
+        @keyframes cardShine { 0% { left: -150%; } 30%, 100% { left: 150%; } }
+        @keyframes slideInRight { from { opacity: 0; transform: translateX(100px); } to { opacity: 1; transform: translateX(0); } }
+
+        .msg-name { color: var(--neon-cyan); font-weight: bold; font-size: 1.1rem; margin-bottom: 5px; display: flex; justify-content: space-between;}
+        .msg-time { color: #aaa; font-size: 0.8rem; }
+        .msg-content { font-size: 1.2rem; text-shadow: 1px 1px 2px black; }
+
+        .status-light {
+            position: absolute; top: 20px; right: 20px; background: rgba(0, 0, 0, 0.8); border: 2px solid var(--neon-cyan);
+            padding: 10px 20px; border-radius: 30px; z-index: 200; box-shadow: 0 0 20px var(--neon-cyan); font-weight: bold;
+        }
+        .dot.online { background: #00ff00; box-shadow: 0 0 15px #00ff00; }
+
+        .marquee-container {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: hidden; pointer-events: none; z-index: 100;
+        }
+        .marquee-item {
+            position: absolute; white-space: nowrap; font-size: 3rem; color: #fff;
+            text-shadow: 0 0 15px var(--kgi-blue), 0 0 30px var(--neon-cyan);
+            font-weight: 900; bottom: -100px; padding: 25px 50px;
+            background: linear-gradient(90deg, var(--kgi-blue), #000);
+            border: 3px solid #ffffff; border-radius: 60px;
+            box-shadow: 0 10px 50px rgba(0, 150, 255, 0.6);
+            animation: flyToTop 15s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+        }
+        .marquee-item.vip-marquee {
+            background: linear-gradient(90deg, #ffd700, #b8860b);
+            border-color: #fff; color: #000; text-shadow: none;
+            box-shadow: 0 0 50px #ffd700; z-index: 300 !important; transform: scale(1.2);
+        }
+        @keyframes flyToTop {
+            0% { bottom: -150px; opacity: 0; transform: scale(0.5) rotate(-5deg); }
+            10% { opacity: 1; transform: scale(1.2) rotate(0deg); }
+            20% { transform: scale(1); }
+            80% { opacity: 1; }
+            100% { bottom: 120%; opacity: 0; transform: scale(1.5) translateY(-100px); }
+        }
+    </style>
+</head>
+<body>
+    <div id="vip-flash-overlay"></div>
+    <div id="particles-js"></div>
+
+    <div class="layout-wrapper">
+        <div class="main-display" id="displayArea">
+            <div class="status-light"><div class="dot" id="statusDot"></div><span id="statusText">連線系統初始化...</span></div>
+            <div class="title" id="mainTitle">聚勢成ONE共創凱壽</div>
+
+            <div class="building-wrapper" id="buildingWrapper">
+                <div class="building-grid" id="building"></div>
+            </div>
+
+            <div class="slogan" id="finalSlogan">凝聚每一份祝福，點亮無限未來</div>
+            <div class="marquee-container" id="marqueeArea"></div>
+        </div>
+
+        <div class="sidebar">
+            <div class="sidebar-header" onclick="manualDownloadBackup()">
+                <h2 title="連續點擊三次可強制備份下載">⚡ 即時能量祝願 ⚡</h2>
+            </div>
+            <div class="message-list" id="messageList"></div>
+        </div>
+    </div>
+
+    <script>
+        function createWarpStars() {
+            const container = document.getElementById('particles-js');
+            for (let i = 0; i < 120; i++) {
+                const star = document.createElement('div');
+                star.classList.add('warp-star');
+                star.style.left = `${Math.random() * 100}%`;
+                star.style.setProperty('--duration', `${Math.random() * 3 + 1}s`);
+                star.style.setProperty('--delay', `${Math.random() * -5}s`);
+                container.appendChild(star);
+            }
+        }
+        createWarpStars();
+
+        const buildingMap = [
+            [0,0,0,2,0,2,0,0,0],
+            [0,0,1,1,0,1,1,0,0],
+            [0,1,1,1,0,1,1,1,0],
+            [1,1,1,1,1,1,1,1,1],
+            [1,1,1,1,1,1,1,1,1],
+            [1,1,1,1,1,1,1,1,1],
+            [1,1,1,1,1,1,1,1,1],
+            [1,1,1,1,1,1,1,1,1],
+            [1,1,1,1,1,1,1,1,1],
+            [1,1,1,1,0,1,1,1,1],
+            [1,1,1,0,0,0,1,1,1]
+        ];
+
+        let totalPieces = 0;
+        let filledCount = 0;
+        const building = document.getElementById('building');
+        const pieces = [];
+        const blessingHistory = [];
+        let vipStatus = { chairman: false, gm: false };
+        let hasAutoDownloaded = false;
+        let clickCount = 0;
+        const marqueeLanes = [2, 18, 34, 50];
+        const laneNextAvailable = [0, 0, 0, 0];
+
+        const kgiColors = {
+            orange: '#f58025',
+            green: '#5cba46',
+            blue: '#00479d',
+            white: '#ffffff',
+            gold: '#ffd700'
+        };
+
+        function initBuilding() {
+            building.innerHTML = '';
+            // 若未來需要重置顯示，這些清掉可避免 pieces 累積
+            pieces.length = 0;
+            totalPieces = 0;
+            filledCount = 0;
+
+            const cols = buildingMap[0].length;
+            building.style.gridTemplateColumns = `repeat(${cols}, var(--grid-size))`;
+
+            buildingMap.forEach((row, rowIndex) => {
+                row.forEach((cell, colIndex) => {
+                    const div = document.createElement('div');
+                    const colorClass = determineLogoColor(colIndex, rowIndex);
+                    div.dataset.colorClass = colorClass;
+
+                    if (cell === 1) {
+                        div.classList.add('piece');
+                        pieces.push(div); building.appendChild(div); totalPieces++;
+                    } else if (cell === 2) {
+                        div.classList.add('piece', 'vip-star');
+                        div.dataset.vip = "true";
+                        pieces.push(div); building.appendChild(div); totalPieces++;
+                    } else {
+                        div.classList.add('spacer'); building.appendChild(div);
+                    }
+                });
+            });
+        }
+
+        function determineLogoColor(col, row) {
+            if (col === 4) {
+                if (row < 3) return 'c-blue';
+                if (row === 3 || row === 4) return 'split-vert-orange-blue';
+                if (row === 5) return 'split-special-center';
+                if (row >= 6 && row <= 9) return 'split-vert-orange-white';
+                if (row === 10) return 'c-blue';
+            }
+            if (row === 5) {
+                if (col < 4) return 'c-orange';
+                if (col > 4) return 'split-horz-blue-white';
+            }
+            if (row < 5) {
+                if (col < 4) {
+                    if (col + row <= 3) return 'c-blue';
+                    if (col + row === 4) return 'split-blue-orange-diag';
+                    return 'c-orange';
+                } else if (col > 4) {
+                    if ((col - 4) - row >= 1) return 'c-green';
+                    if ((col - 4) - row === 0) return 'split-blue-green-diag';
+                    return 'c-blue';
+                }
+            }
+            if (row >= 6) {
+                if (row === 6) {
+                    if (col === 0) return 'split-diag-orange-blue';
+                    if (col >= 1 && col <= 3) return 'c-orange';
+                }
+                if (row === 7) {
+                    if (col === 0) return 'c-blue';
+                    if (col === 1) return 'split-diag-orange-blue';
+                    if (col >= 2 && col <= 3) return 'c-orange';
+                }
+                if (row === 8) {
+                    if (col <= 1) return 'c-blue';
+                    if (col === 2) return 'split-diag-orange-blue';
+                    if (col === 3) return 'c-orange';
+                }
+                if (row === 9) {
+                    if (col <= 2) return 'c-blue';
+                    if (col === 3) return 'split-diag-orange-blue';
+                }
+                if (row === 10) return 'c-blue';
+
+                if (row === 6) {
+                    if (col >= 5 && col <= 7) return 'c-white';
+                    if (col === 8) return 'split-diag-white-blue';
+                }
+                if (row === 7) {
+                    if (col >= 5 && col <= 6) return 'c-white';
+                    if (col === 7) return 'split-diag-white-blue';
+                    if (col === 8) return 'c-blue';
+                }
+                if (row === 8) {
+                    if (col === 5) return 'c-white';
+                    if (col === 6) return 'split-diag-white-blue';
+                    if (col >= 7) return 'c-blue';
+                }
+                if (row === 9) {
+                    if (col === 5) return 'split-diag-white-blue';
+                    if (col >= 6) return 'c-blue';
+                }
+            }
+            return 'c-blue';
+        }
+
+        function getHexFromClass(className) {
+            if (className.includes('orange')) return kgiColors.orange;
+            if (className.includes('green')) return kgiColors.green;
+            if (className.includes('white')) return kgiColors.white;
+            if (className.includes('gold')) return kgiColors.gold;
+            return kgiColors.blue;
+        }
+
+        function getRandomEmptyIndex() {
+            const emptyIndices = pieces.map((p, index) => {
+                if (p.classList.contains('active') || p.dataset.vip === "true") return -1;
+                return index;
+            }).filter(index => index !== -1);
+            if (emptyIndices.length === 0) return -1;
+            return emptyIndices[Math.floor(Math.random() * emptyIndices.length)];
+        }
+
+        function getVipEmptyIndex() {
+            const vipIndices = pieces.map((p, index) => {
+                if (p.dataset.vip === "true" && !p.classList.contains('active')) return index;
+                return -1;
+            }).filter(index => index !== -1);
+            if (vipIndices.length === 0) return -1;
+            return vipIndices[0];
+        }
+
+        // === 串場節奏設定（你要的每筆約 5 秒）===
+        const MARQUEE_DURATION_MS = 5000;
+        const FX_DURATION_NORMAL_MS = 1400;
+        const FX_DURATION_VIP_MS = 1700;
+
+        function triggerEnergyExplosion(targetElement, isVip = false, colorHex) {
+            const rect = targetElement.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+
+            if (isVip) {
+                const overlay = document.getElementById('vip-flash-overlay');
+                overlay.classList.add('flash-active');
+                setTimeout(() => overlay.classList.remove('flash-active'), 300);
+            }
+
+            document.body.classList.remove('screen-shake');
+            void document.body.offsetWidth;
+            document.body.classList.add('screen-shake');
+            setTimeout(() => document.body.classList.remove('screen-shake'), 500);
+
+            const shockwave = document.createElement('div');
+            shockwave.classList.add('massive-shockwave');
+            shockwave.style.left = centerX + 'px';
+            shockwave.style.top = centerY + 'px';
+            shockwave.style.borderColor = colorHex;
+            shockwave.style.boxShadow = `0 0 120px ${colorHex}, inset 0 0 120px ${colorHex}`;
+            document.body.appendChild(shockwave);
+
+            shockwave.animate([
+                { width: '0px', height: '0px', opacity: 1, borderWidth: '50px' },
+                { width: '2500px', height: '2500px', opacity: 0, borderWidth: '0px' }
+            ], { duration: 900, easing: 'ease-out' }).onfinish = () => shockwave.remove();
+
+            const particleCount = isVip ? 150 : 60;
+            const colors = [colorHex, '#ffffff', colorHex];
+            if (isVip) colors.push('#ffd700', '#ffaa00');
+
+            for (let i = 0; i < particleCount; i++) {
+                const p = document.createElement('div');
+                p.classList.add('explosion-particle');
+                p.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                p.style.setProperty('--color', p.style.backgroundColor);
+                p.style.left = centerX + 'px';
+                p.style.top = centerY + 'px';
+                document.body.appendChild(p);
+
+                const angle = Math.random() * Math.PI * 2;
+                const velocity = isVip ? (200 + Math.random() * 1200) : (150 + Math.random() * 900);
+                const destX = Math.cos(angle) * velocity;
+                const destY = Math.sin(angle) * velocity;
+                const rotation = Math.random() * 720;
+
+                p.animate([
+                    { transform: `translate(0,0) scale(1) rotate(0deg)`, opacity: 1 },
+                    { transform: `translate(${destX}px, ${destY}px) scale(0) rotate(${rotation}deg)`, opacity: 0 }
+                ], { duration: 800 + Math.random() * 400, easing: 'cubic-bezier(0.25, 1, 0.5, 1)' }).onfinish = () => p.remove();
+            }
+
+            // ✅ 回傳：這筆爆炸特效播完（保守值，避免重疊）
+            return new Promise((resolve) => {
+                setTimeout(resolve, isVip ? FX_DURATION_VIP_MS : FX_DURATION_NORMAL_MS);
+            });
+        }
+
+        function triggerTextAwakening() {
+            const title = document.getElementById('mainTitle');
+            const slogan = document.getElementById('finalSlogan');
+            const buildingWrap = document.getElementById('buildingWrapper');
+
+            const overlay = document.getElementById('vip-flash-overlay');
+            overlay.classList.add('flash-soft');
+            setTimeout(() => overlay.classList.remove('flash-soft'), 1000);
+
+            buildingWrap.classList.add('building-dimmed');
+
+            title.classList.add('cinematic-gold');
+            slogan.classList.add('cinematic-gold');
+            slogan.style.opacity = 1;
+        }
+
+        function addToSidebar(name, msg) {
+            const list = document.getElementById('messageList');
+            const card = document.createElement('div');
+            card.classList.add('msg-card');
+            const now = new Date();
+            card.innerHTML = `<div class="msg-name">${name}<span class="msg-time">${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}</span></div><div class="msg-content">${msg}</div>`;
+            list.insertBefore(card, list.firstChild);
+        }
+
+        function exportToCSV() {
+            if (blessingHistory.length === 0) { alert("無資料可下載"); return; }
+            let csvContent = "\uFEFF發送時間,姓名/單位,祝福內容\n";
+            blessingHistory.forEach(item => {
+                const cleanName = item.name.replace(/,/g, "，");
+                const cleanMsg = item.msg.replace(/,/g, "，");
+                csvContent += `${item.time},${cleanName},${cleanMsg}\n`;
+            });
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+            link.setAttribute("download", `KGI_祝福紀錄_${timestamp}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function manualDownloadBackup() {
+            clickCount++;
+            if (clickCount === 3) {
+                if(confirm("強制下載紀錄？")) exportToCSV();
+                clickCount = 0;
+            }
+            setTimeout(() => { clickCount = 0; }, 2000);
+        }
+
+        // ✅ 跑馬燈：改成 Promise（等動畫結束才算這筆完成）
+        function showMarquee(text, isVip = false) {
+            return new Promise((resolve) => {
+                const container = document.getElementById('marqueeArea');
+                const el = document.createElement('div');
+                el.classList.add('marquee-item');
+                el.innerText = text;
+
+                const colors = ['#fff', '#ffd700', '#7df9ff', '#ffb74d'];
+                el.style.borderColor = colors[Math.floor(Math.random() * colors.length)];
+
+                // 覆蓋原本 15s，改成每筆 5s
+                el.style.animationDuration = `${MARQUEE_DURATION_MS / 1000}s`;
+
+                if (isVip) {
+                    el.classList.add('vip-marquee');
+                    el.style.left = '25%';
+                } else {
+                    const now = Date.now();
+                    let chosenLaneIndex = -1;
+                    const randomIndices = [0, 1, 2, 3].sort(() => Math.random() - 0.5);
+                    for (let i of randomIndices) {
+                        if (now >= laneNextAvailable[i]) { chosenLaneIndex = i; break; }
+                    }
+                    if (chosenLaneIndex === -1) {
+                        let minTime = Infinity;
+                        for (let i = 0; i < laneNextAvailable.length; i++) {
+                            if (laneNextAvailable[i] < minTime) { minTime = laneNextAvailable[i]; chosenLaneIndex = i; }
+                        }
+                    }
+                    el.style.left = marqueeLanes[chosenLaneIndex] + '%';
+                    laneNextAvailable[chosenLaneIndex] = now + 2500;
+                }
+
+                container.appendChild(el);
+
+                const cleanup = () => { el.remove(); resolve(); };
+                el.addEventListener('animationend', cleanup, { once: true });
+
+                // 保底：避免 animationend 沒觸發造成卡住
+                setTimeout(cleanup, MARQUEE_DURATION_MS + 800);
+            });
+        }
+
+        function triggerCompletionEffect() {
+            pieces.forEach((p, i) => {
+                setTimeout(() => {
+                    p.style.transform = 'scale(1.5) translateZ(150px)';
+                    p.style.boxShadow = '0 0 100px white, 0 0 150px var(--neon-cyan)';
+                    p.style.zIndex = 200;
+                    setTimeout(() => {
+                        p.style.transform = 'scale(1.2) translateZ(50px)';
+                        p.style.boxShadow = '0 0 30px var(--neon-cyan), 0 0 60px var(--kgi-blue)';
+                        p.style.zIndex = 100;
+                    }, 600);
+                }, (i % 9) * 60 + (Math.floor(i / 9) * 30));
+            });
+        }
+
+        // === 串場佇列：一筆播完才下一筆 ===
+        const messageQueue = [];
+        let queueRunning = false;
+
+        async function processQueue() {
+            if (queueRunning) return;
+            queueRunning = true;
+
+            while (messageQueue.length > 0) {
+                const data = messageQueue.shift();
+                await onMessageReceivedSequential(data.name, data.msg, data);
+            }
+
+            queueRunning = false;
+        }
+
+        // ✅ 順序版：等爆炸 + 跑馬燈完成才進下一筆（整體約 5 秒）
+        async function onMessageReceivedSequential(name, msg, data) {
+            const now = new Date();
+            const timeStr = now.getHours().toString().padStart(2, '0') + ':' +
+                            now.getMinutes().toString().padStart(2, '0') + ':' +
+                            now.getSeconds().toString().padStart(2, '0');
+
+            blessingHistory.push({ time: timeStr, name: name, msg: msg });
+            addToSidebar(name, msg);
+
+            const isVipUser = (data && data.isVip === true);
+
+            if (isVipUser) {
+                if (data.vipRole === 'chairman') vipStatus.chairman = true;
+                if (data.vipRole === 'gm') vipStatus.gm = true;
+
+                if (vipStatus.chairman && vipStatus.gm) {
+                    triggerTextAwakening();
+                    if (!hasAutoDownloaded) {
+                        setTimeout(() => { exportToCSV(); hasAutoDownloaded = true; }, 3000);
+                    }
+                }
+            }
+
+            if (filledCount >= totalPieces) return;
+
+            let targetIndex = -1;
+            let finalColorHex = '#ffffff';
+
+            if (isVipUser) {
+                targetIndex = getVipEmptyIndex();
+                if (targetIndex === -1) targetIndex = getRandomEmptyIndex();
+                finalColorHex = kgiColors.gold;
+            } else {
+                targetIndex = getRandomEmptyIndex();
+                if (targetIndex !== -1) {
+                    const colorClass = pieces[targetIndex].dataset.colorClass;
+                    pieces[targetIndex].classList.add(colorClass);
+                    finalColorHex = getHexFromClass(colorClass);
+                }
+            }
+
+            if (targetIndex !== -1) {
+                const targetPiece = pieces[targetIndex];
+                targetPiece.classList.add('active');
+                filledCount++;
+
+                await Promise.all([
+                    triggerEnergyExplosion(targetPiece, isVipUser, finalColorHex),
+                    showMarquee(`${name}：${msg}`, isVipUser)
+                ]);
+
+                if (filledCount === totalPieces) {
+                    setTimeout(() => {
+                        document.getElementById('finalSlogan').style.opacity = 1;
+                        triggerCompletionEffect();
+                    }, 500);
+                }
+            }
+        }
+
+        // === MQTT ===
+        const broker = "broker.emqx.io";
+        const port = 8084;
+        const topic = "kgi_event_2025_live_demo_vtaco";
+
+        const clientID = "monitor_" + new Date().getTime();
+        const client = new Paho.MQTT.Client(broker, port, clientID);
+
+        client.onConnectionLost = function () {
+            document.getElementById('statusDot').classList.remove('online');
+            document.getElementById('statusText').innerText = "連線中斷...";
+            setTimeout(connectMQTT, 2000);
+        };
+
+        // ✅ 收到訊息：只入隊列，不直接顯示（避免重疊）
+        client.onMessageArrived = function (msg) {
+            try {
+                const data = JSON.parse(msg.payloadString);
+                messageQueue.push(data);
+                processQueue();
+            } catch (e) { console.error(e); }
+        };
+
+        function connectMQTT() {
+            client.connect({
+                useSSL: true,
+                onSuccess: function () {
+                    document.getElementById('statusDot').classList.add('online');
+                    document.getElementById('statusText').innerText = `系統連線就緒`;
+                    client.subscribe(topic);
+                },
+                onFailure: function () {}
+            });
+        }
+
+        initBuilding();
+        connectMQTT();
+    </script>
+</body>
+</html>

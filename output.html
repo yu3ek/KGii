@@ -468,8 +468,8 @@
         }
 
         // === 串場節奏設定 ===
-        const MARQUEE_DURATION_MS = 1100;   // 每筆跑馬燈約 5 秒
-        const FX_DURATION_NORMAL_MS = 400;
+        const MARQUEE_DURATION_MS = 700;   // 每筆跑馬燈約 5 秒
+        const FX_DURATION_NORMAL_MS = 1000;
         const FX_DURATION_VIP_MS = 700;
 
         function triggerEnergyExplosion(targetElement, isVip = false, colorHex) {
@@ -526,9 +526,7 @@
                 ], { duration: 800 + Math.random() * 400, easing: 'cubic-bezier(0.25, 1, 0.5, 1)' }).onfinish = () => p.remove();
             }
 
-            return new Promise((resolve) => {
-                setTimeout(resolve, isVip ? FX_DURATION_VIP_MS : FX_DURATION_NORMAL_MS);
-            });
+            return new Promise.resolve();
         }
 
         function triggerTextAwakening() {

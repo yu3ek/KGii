@@ -281,7 +281,7 @@
     <div class="layout-wrapper">
         <div class="main-display" id="displayArea">
             <div class="status-light"><div class="dot" id="statusDot"></div><span id="statusText">連線系統初始化...</span></div>
-            <div class="title" id="mainTitle">聚勢成ONE共創凱壽</div>
+            <div class="title" id="mainTitle">聚勢成ONE － 共創凱壽</div>
 
             <div class="building-wrapper" id="buildingWrapper">
                 <div class="building-grid" id="building"></div>
@@ -469,9 +469,9 @@
 
         // === 串場節奏設定 ===
         const MARQUEE_DURATION_MS = 5000;     // 每筆跑馬燈時間（建議 5000）
-        const FX_DURATION_NORMAL_MS = 1400;   // 一般爆炸特效保守等待
+        const FX_DURATION_NORMAL_MS = 2500;   // 一般爆炸特效保守等待
         const FX_DURATION_VIP_MS = 1700;      // VIP 爆炸特效保守等待
-        const MESSAGE_GAP_MS = 500;           // ✅ 每筆與下一筆之間的間隔（你要 0.5 秒）
+        const MESSAGE_GAP_MS = 0;           // ✅ 每筆與下一筆之間的間隔（你要 0.5 秒）
 
         function triggerEnergyExplosion(targetElement, isVip = false, colorHex) {
             const rect = targetElement.getBoundingClientRect();

@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -336,8 +335,11 @@
         let vipStatus = { chairman: false, gm: false };
         let hasAutoDownloaded = false;
         let clickCount = 0;
-        const marqueeLanes = [2, 18, 34, 50];
-        const laneNextAvailable = [0, 0, 0, 0];
+
+        // === Lane 設定：越多 lane 越能承受高頻訊息（不重疊）===
+        const marqueeLanes = [2, 18, 34, 50, 66];   // 你也可改成 4 條/6 條
+        const laneNextAvailable = new Array(marqueeLanes.length).fill(0);
+        let vipLaneNextAvailable = 0;
 
         const kgiColors = {
             orange: '#f58025',
@@ -468,11 +470,13 @@
             return vipIndices[0];
         }
 
-        // === 串場節奏設定 ===
-        const MARQUEE_DURATION_MS = 5000;     // 每筆跑馬燈時間（建議 5000）
-        const FX_DURATION_NORMAL_MS = 2500;   // 一般爆炸特效保守等待
-        const FX_DURATION_VIP_MS = 1700;      // VIP 爆炸特效保守等待
-        const MESSAGE_GAP_MS = 0.1;           // ✅ 每筆與下一筆之間的間隔（你要 0.5 秒）
+        // === 做法 B：顯示節奏（重點在這裡）===
+        const MARQUEE_DURATION_MS = 5000;   // 跑馬燈視覺時間維持 5 秒
+        const DISPATCH_INTERVAL_MS = 2000;  // 每 2 秒放行下一筆（你要的「間隔兩秒」）
+
+        // （保留爆炸/震動）如果你之後想關掉，我也可以幫你一鍵切換
+        const FX_DURATION_NORMAL_MS = 2500;
+        const FX_DURATION_VIP_MS = 1700;
 
         function triggerEnergyExplosion(targetElement, isVip = false, colorHex) {
             const rect = targetElement.getBoundingClientRect();
@@ -586,44 +590,57 @@
             setTimeout(() => { clickCount = 0; }, 2000);
         }
 
-        function showMarquee(text, isVip = false) {
-            return new Promise((resolve) => {
-                const container = document.getElementById('marqueeArea');
-                const el = document.createElement('div');
-                el.classList.add('marquee-item');
-                el.innerText = text;
+        // ✅ 做法 B：跑馬燈改成「排程」，不再 await 等 5 秒
+        function scheduleMarquee(text, isVip = false) {
+            const container = document.getElementById('marqueeArea');
+            const el = document.createElement('div');
+            el.classList.add('marquee-item');
+            el.innerText = text;
 
-                const colors = ['#fff', '#ffd700', '#7df9ff', '#ffb74d'];
-                el.style.borderColor = colors[Math.floor(Math.random() * colors.length)];
+            const colors = ['#fff', '#ffd700', '#7df9ff', '#ffb74d'];
+            el.style.borderColor = colors[Math.floor(Math.random() * colors.length)];
+            el.style.animationDuration = `${MARQUEE_DURATION_MS / 1000}s`;
 
-                el.style.animationDuration = `${MARQUEE_DURATION_MS / 1000}s`;
+            const now = Date.now();
 
-                if (isVip) {
-                    el.classList.add('vip-marquee');
-                    el.style.left = '25%';
-                } else {
-                    const now = Date.now();
-                    let chosenLaneIndex = -1;
-                    const randomIndices = [0, 1, 2, 3].sort(() => Math.random() - 0.5);
-                    for (let i of randomIndices) {
-                        if (now >= laneNextAvailable[i]) { chosenLaneIndex = i; break; }
-                    }
-                    if (chosenLaneIndex === -1) {
-                        let minTime = Infinity;
-                        for (let i = 0; i < laneNextAvailable.length; i++) {
-                            if (laneNextAvailable[i] < minTime) { minTime = laneNextAvailable[i]; chosenLaneIndex = i; }
-                        }
-                    }
-                    el.style.left = marqueeLanes[chosenLaneIndex] + '%';
-                    laneNextAvailable[chosenLaneIndex] = now + 2500;
-                }
+            // VIP：固定一條道（25%），也做不重疊排程
+            if (isVip) {
+                el.classList.add('vip-marquee');
+                el.style.left = '25%';
+
+                const startAt = Math.max(now, vipLaneNextAvailable);
+                const delayMs = startAt - now;
+
+                el.style.animationDelay = `${delayMs / 1000}s`;
+                vipLaneNextAvailable = startAt + MARQUEE_DURATION_MS;
 
                 container.appendChild(el);
+                setTimeout(() => el.remove(), delayMs + MARQUEE_DURATION_MS + 800);
+                return;
+            }
 
-                const cleanup = () => { el.remove(); resolve(); };
-                el.addEventListener('animationend', cleanup, { once: true });
-                setTimeout(cleanup, MARQUEE_DURATION_MS + 800);
-            });
+            // 一般：挑「最早可用」的 lane，並排程到那個時間開始
+            let chosenLaneIndex = 0;
+            let earliest = laneNextAvailable[0];
+
+            for (let i = 1; i < laneNextAvailable.length; i++) {
+                if (laneNextAvailable[i] < earliest) {
+                    earliest = laneNextAvailable[i];
+                    chosenLaneIndex = i;
+                }
+            }
+
+            const startAt = Math.max(now, laneNextAvailable[chosenLaneIndex]);
+            const delayMs = startAt - now;
+
+            el.style.left = marqueeLanes[chosenLaneIndex] + '%';
+            el.style.animationDelay = `${delayMs / 1000}s`;
+
+            // 這條 lane 要到該訊息跑完才釋放，確保不重疊
+            laneNextAvailable[chosenLaneIndex] = startAt + MARQUEE_DURATION_MS;
+
+            container.appendChild(el);
+            setTimeout(() => el.remove(), delayMs + MARQUEE_DURATION_MS + 800);
         }
 
         function triggerCompletionEffect() {
@@ -641,38 +658,51 @@
             });
         }
 
+        // === 做法 B：Queue 仍保留，但用「節拍器」每 2 秒放行一筆 ===
         const messageQueue = [];
-        let queueRunning = false;
+        let dispatcherTimer = null;
+        let dispatchInFlight = false;
 
-        async function sleep(ms) {
-            return new Promise(r => setTimeout(r, ms));
-        }
+        function startDispatcher() {
+            if (dispatcherTimer) return;
 
-        async function processQueue() {
-            if (queueRunning) return;
-            queueRunning = true;
+            dispatcherTimer = setInterval(async () => {
+                if (dispatchInFlight) return;
+                if (messageQueue.length === 0) {
+                    // 沒訊息就停掉節拍器，避免一直空轉
+                    clearInterval(dispatcherTimer);
+                    dispatcherTimer = null;
+                    return;
+                }
 
-            while (messageQueue.length > 0) {
+                dispatchInFlight = true;
                 const data = messageQueue.shift();
-                await onMessageReceivedSequential(data.displayName, data.msg, data);
-                if (MESSAGE_GAP_MS > 0) await sleep(MESSAGE_GAP_MS);
-            }
-
-            queueRunning = false;
+                try {
+                    await handleMessageCore(data);
+                } catch (e) {
+                    console.error("handleMessageCore error", e);
+                } finally {
+                    dispatchInFlight = false;
+                }
+            }, DISPATCH_INTERVAL_MS);
         }
 
-        async function onMessageReceivedSequential(displayName, msg, data) {
+        async function handleMessageCore(data) {
+            const displayName = (data.displayName || "").trim();
+            const msg = (data.msg || "").trim();
+
             const now = new Date();
             const timeStr = now.getHours().toString().padStart(2, '0') + ':' +
                             now.getMinutes().toString().padStart(2, '0') + ':' +
                             now.getSeconds().toString().padStart(2, '0');
 
-            // CSV/歷史：存「通訊處/姓名」的最終顯示字串（最穩定）
+            // 歷史 + 右欄：每筆都立刻記錄（不被跑馬燈卡住）
             blessingHistory.push({ time: timeStr, name: displayName, msg: msg });
             addToSidebar(displayName, msg);
 
             const isVipUser = (data && data.isVip === true);
 
+            // VIP 狀態觸發邏輯（保留）
             if (isVipUser) {
                 if (data.vipRole === 'chairman') vipStatus.chairman = true;
                 if (data.vipRole === 'gm') vipStatus.gm = true;
@@ -685,12 +715,13 @@
                 }
             }
 
-            // ✅ 格子滿了：只跑跑馬燈（仍會顯示）
-            if (filledCount >= totalPieces) {
-                await showMarquee(`${displayName}：${msg}`, isVipUser);
-                return;
-            }
+            // ✅ 跑馬燈：用排程，不 await（所以不會卡住 5 秒）
+            scheduleMarquee(`${displayName}：${msg}`, isVipUser);
 
+            // ✅ 格子滿了：不填格子，但跑馬燈照常
+            if (filledCount >= totalPieces) return;
+
+            // ====== 下面維持你原本的填格子 + 爆炸（不影響下一筆放行） ======
             let targetIndex = -1;
             let finalColorHex = '#ffffff';
 
@@ -712,10 +743,8 @@
                 targetPiece.classList.add('active');
                 filledCount++;
 
-                await Promise.all([
-                    triggerEnergyExplosion(targetPiece, isVipUser, finalColorHex),
-                    showMarquee(`${displayName}：${msg}`, isVipUser)
-                ]);
+                // 爆炸特效仍可 await（只影響這次處理，不影響整體 2 秒節拍器）
+                await triggerEnergyExplosion(targetPiece, isVipUser, finalColorHex);
 
                 if (filledCount === totalPieces) {
                     setTimeout(() => {
@@ -740,7 +769,7 @@
             setTimeout(connectMQTT, 2000);
         };
 
-        // ✅ 收到訊息：解析 office/name/msg → 組 displayName → 入隊列（向下相容）
+        // ✅ 收到訊息：解析 office/name/msg → 組 displayName → 入隊列
         client.onMessageArrived = function (msg) {
             try {
                 const data = JSON.parse(msg.payloadString);
@@ -754,7 +783,7 @@
                 data.msg = msgText;
 
                 messageQueue.push(data);
-                processQueue();
+                startDispatcher();
             } catch (e) {
                 console.error("訊息解析失敗", e);
             }

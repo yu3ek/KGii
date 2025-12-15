@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>傳遞祝福 - 凱基永續</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #0b1e36;
+            --kgi-orange: #f39800;
+            --kgi-blue: #0056b3;
+            --text-color: #fff;
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: "Microsoft JhengHei", sans-serif;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+
+        h2 {
+            text-align: center;
+            color: var(--kgi-orange);
+            margin-bottom: 30px;
+            font-size: 1.5rem;
+            border-bottom: 1px solid #333;
+            padding-bottom: 15px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #ccc;
+            font-size: 1rem;
+        }
+
+        input, textarea {
+            width: 100%;
+            padding: 15px;
+            background: #1e3a5f;
+            border: 1px solid #444;
+            color: white;
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-size: 1.1rem; /* 放大字體方便手機輸入 */
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--kgi-orange);
+            background: #2a4b75;
+        }
+
+        button {
+            width: 100%;
+            padding: 18px;
+            margin-top: 30px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1.2rem;
+            background: linear-gradient(90deg, var(--kgi-orange), #ff6b00);
+            color: white;
+            box-shadow: 0 4px 15px rgba(243, 152, 0, 0.4);
+            transition: transform 0.1s;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        button:disabled {
+            background: #555;
+            color: #888;
+            box-shadow: none;
+        }
+
+        .status {
+            text-align: center;
+            margin-top: 15px;
+            font-size: 0.9rem;
+            color: #888;
+        }
+
+        .success-msg {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(0, 255, 0, 0.1);
+            border: 1px solid #00ff00;
+            border-radius: 8px;
+            color: #00ff00;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>📱 傳遞願景祝福</h2>
+
+    <div class="input-group">
+        <label for="name">您的姓名 / 單位</label>
+        <input type="text" id="name" placeholder="例如：林小明 / 財務部">
+    </div>
+
+    <div class="input-group">
+        <label for="msg">願景祝福 (30字內)</label>
+        <input type="text" id="msg" maxlength="30" placeholder="寫下對公司的期許...">
+    </div>
+
+    <button id="sendBtn" onclick="sendMessage()">✨ 發送祝福光點</button>
+
+    <div class="success-msg" id="successMsg">
+        發送成功！請看大螢幕 🎉
+    </div>
+
+    <div class="status" id="status">正在連線至祝福主機...</div>
+
+    <script>
+        // === MQTT 設定 (必須與大螢幕端完全一致) ===
+	const broker = "broker.emqx.io";
+        const port = 8084; // 改成 8084
+        const topic = "kgi_event_2025_live_demo_vtaco"; // 請確認跟大螢幕一樣
+        const clientID = "sender_" + new Date().getTime();
+
+        const client = new Paho.MQTT.Client(broker, port, clientID);
+        let isConnected = false;
+
+        // 連線
+        client.connect({
+            useSSL: true, // 開啟加密連線
+            onSuccess: function () {
+                console.log("連線成功");
+                document.getElementById('status').innerText = "🟢 已連線，請輸入祝福";
+                isConnected = true;
+            },
+            onFailure: function (e) {
+                console.log("連線失敗", e);
+                document.getElementById('status').innerText = "🔴 連線失敗，請重新整理網頁";
+            }
+        });
+
+        function sendMessage() {
+            const name = document.getElementById('name').value.trim();
+            const msg = document.getElementById('msg').value.trim();
+            const btn = document.getElementById('sendBtn');
+
+            if (!isConnected) {
+                alert("尚未連線，請稍後再試！");
+                return;
+            }
+            if (!name || !msg) {
+                alert("請完整填寫姓名與祝福內容喔！");
+                return;
+            }
+
+            // 打包成 JSON
+            const payload = JSON.stringify({ name: name, msg: msg });
+            
+            try {
+                const message = new Paho.MQTT.Message(payload);
+                message.destinationName = topic;
+                client.send(message);
+
+                // UI 回饋
+                btn.disabled = true;
+                btn.innerText = "發送中...";
+                
+                setTimeout(() => {
+                    document.getElementById('successMsg').style.display = 'block';
+                    document.getElementById('name').value = '';
+                    document.getElementById('msg').value = '';
+                    
+                    btn.innerText = "✨ 再次發送";
+                    btn.disabled = false;
+
+                    // 3秒後隱藏成功訊息
+                    setTimeout(() => {
+                        document.getElementById('successMsg').style.display = 'none';
+                    }, 3000);
+                }, 500);
+
+            } catch (e) {
+                alert("發送失敗，請重試");
+                console.error(e);
+            }
+        }
+    </script>
+</body>
+
+</html>

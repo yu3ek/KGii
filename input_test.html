@@ -1,211 +1,156 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>聚勢成ONE 共創凱壽</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
-  <style>
-    :root {
-      --bg-color: #0b1e36;
-      --kgi-orange: #f39800;
-      --kgi-blue: #0056b3;
-      --text-color: #fff;
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>聚勢成ONE 共創凱壽</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #000510;
+            --neon-cyan: #00ffff;
 
-    body {
-      margin: 0;
-      padding: 20px;
-      background-color: var(--bg-color);
-      color: var(--text-color);
-      font-family: "Microsoft JhengHei", sans-serif;
-      display: flex;
-      flex-direction: column;
-      min-height: 100vh;
-      box-sizing: border-box;
-    }
+            --kgi-blue: #00479d;
+            --kgi-orange: #f58025;
+            --kgi-green: #5cba46;
+            --kgi-white: #ffffff;
+            --vip-gold: #ffd700;
 
-    h2 {
-      text-align: center;
-      color: var(--kgi-orange);
-      margin-bottom: 30px;
-      font-size: 1.5rem;
-      border-bottom: 1px solid #333;
-      padding-bottom: 15px;
-    }
+            --grid-size: min(8.2vh, 8.2vw);
+        }
 
-    .input-group { margin-bottom: 20px; }
+        body {
+            margin: 0; padding: 0;
+            background-color: var(--bg-color);
+            color: white;
+            font-family: "Microsoft JhengHei", sans-serif;
+            height: 100vh; overflow: hidden;
+        }
 
-    label {
-      display: block;
-      margin-bottom: 8px;
-      color: #ccc;
-      font-size: 1rem;
-    }
+        #vip-flash-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: white; opacity: 0; pointer-events: none; z-index: 9999;
+            transition: opacity 0.1s;
+        }
+        .flash-soft { opacity: 0.25 !important; transition: opacity 1s !important; }
 
-    input, textarea {
-      width: 100%;
-      padding: 15px;
-      background: #1e3a5f;
-      border: 1px solid #444;
-      color: white;
-      border-radius: 8px;
-      box-sizing: border-box;
-      font-size: 1.1rem;
-    }
+        #particles-js {
+            position: absolute; width: 100%; height: 100%;
+            background: radial-gradient(ellipse at bottom, #0c2441 0%, #000000 80%);
+            z-index: 1; overflow: hidden; pointer-events: none;
+        }
+        .warp-star {
+            position: absolute; width: 4px; height: 4px; background: var(--neon-cyan);
+            border-radius: 50%; opacity: 0; box-shadow: 0 0 10px var(--neon-cyan);
+            animation: warpSpeed var(--duration) linear infinite; animation-delay: var(--delay);
+        }
+        @keyframes warpSpeed {
+            0% { opacity: 0; transform: translateY(0) scale(0.5); }
+            10% { opacity: 1; }
+            100% { opacity: 0; transform: translateY(-100vh) scale(5); height: 100px; }
+        }
 
-    input:focus, textarea:focus {
-      outline: none;
-      border-color: var(--kgi-orange);
-      background: #2a4b75;
-    }
+        .layout-wrapper { display: flex; width: 100%; height: 100%; position: relative; z-index: 10; }
 
-    button {
-      width: 100%;
-      padding: 18px;
-      margin-top: 30px;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      font-weight: bold;
-      font-size: 1.2rem;
-      background: linear-gradient(90deg, var(--kgi-orange), #ff6b00);
-      color: white;
-      box-shadow: 0 4px 15px rgba(243, 152, 0, 0.4);
-      transition: transform 0.1s;
-    }
+        .main-display {
+            flex: 3; position: relative;
+            display: flex; justify-content: center; align-items: center;
+            background-image: linear-gradient(transparent 50%, rgba(0, 0, 0, 0.5) 50%), radial-gradient(transparent, black);
+            background-size: 10px 10px, 100% 100%;
+            perspective: 1200px; perspective-origin: 50% 90%;
+            overflow: hidden;
+        }
 
-    button:active { transform: scale(0.98); }
+        .title {
+            position: absolute;
+            top: 3vh;
+            width: 100%; text-align: center;
+            font-size: 3.5rem;
+            color: rgba(255, 215, 0, 0.85);
+            text-shadow: 0 0 10px rgba(0, 71, 157, 0.5);
+            letter-spacing: 12px; font-weight: 900; z-index: 20;
+            transition: all 1s ease-out;
+            transform: scale(0.9);
+        }
 
-    button:disabled {
-      background: #555;
-      color: #888;
-      box-shadow: none;
-    }
+        .slogan {
+            position: absolute; bottom: 3vh; width: 100%; text-align: center;
+            font-size: 2.2rem; font-weight: bold; z-index: 20;
+            color: rgba(255, 215, 0, 0.85);
+            text-shadow: none;
+            opacity: 0; transition: opacity 1s; pointer-events: none;
+        }
 
-    .status {
-      text-align: center;
-      margin-top: 15px;
-      font-size: 0.9rem;
-      color: #888;
-    }
+        .cinematic-gold {
+            opacity: 1 !important;
+            transform: scale(1.1) !important;
+            color: transparent !important;
 
-    .success-msg {
-      display: none;
-      text-align: center;
-      margin-top: 20px;
-      padding: 15px;
-      background: rgba(0, 255, 0, 0.1);
-      border: 1px solid #00ff00;
-      border-radius: 8px;
-      color: #00ff00;
-      line-height: 1.5;
-    }
-  </style>
-</head>
+            background: linear-gradient(
+                110deg,
+                #b8860b 10%,
+                #ffd700 30%,
+                #ffffff 50%,
+                #ffd700 70%,
+                #b8860b 90%
+            );
+            background-size: 200% auto;
+            -webkit-background-clip: text !important;
+            background-clip: text !important;
 
-<body>
-  <h2>聚勢成ONE 共創凱壽</h2>
+            filter: drop-shadow(0 0 5px #ffd700) drop-shadow(0 0 20px #ff8c00) drop-shadow(0 5px 15px black);
 
-  <div class="input-group">
-    <label for="office">通訊處</label>
-    <input type="text" id="office" placeholder="例如：北一" />
-  </div>
+            animation:
+                cinematicEntrance 1s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards,
+                liquidFlow 3s linear infinite !important;
+        }
 
-  <div class="input-group">
-    <label for="name">姓名</label>
-    <input type="text" id="name" placeholder="例如：王小明" />
-  </div>
+        @keyframes cinematicEntrance {
+            0% { transform: scale(3) translateY(-50px); opacity: 0; letter-spacing: 50px; filter: blur(20px); }
+            100% { transform: scale(1.1) translateY(0); opacity: 1; letter-spacing: 12px; filter: blur(0); }
+        }
+        @keyframes liquidFlow {
+            0% { background-position: 0% center; }
+            100% { background-position: 200% center; }
+        }
 
-  <div class="input-group">
-    <label for="msg">願景祝福 (30字內)</label>
-    <input type="text" id="msg" maxlength="30" placeholder="寫下對公司的期許..." />
-  </div>
+        .building-wrapper {
+            position: relative; padding: 0; border: none; box-shadow: none; z-index: 10;
+            transform: rotateX(15deg) translateY(20px);
+            transform-style: preserve-3d;
+            display: flex; justify-content: center; align-items: center;
+            transition: transform 2s ease-in-out;
+        }
+        .building-dimmed {
+            filter: brightness(0.7);
+            transform: rotateX(15deg) translateY(20px) translateZ(-50px) !important;
+        }
 
-  <button id="sendBtn" onclick="sendMessage()">✨ 發送祝福光點</button>
+        .building-grid { display: grid; gap: 0.5vh; margin: 0 auto; }
 
-  <div class="success-msg" id="successMsg">
-    發送成功！請看大螢幕 🎉<br/>
-    若現場訊息較多，可能稍有延遲
-  </div>
+        .piece {
+            width: var(--grid-size); height: var(--grid-size);
+            background-color: rgba(0, 15, 30, 0.6);
+            border: 1px solid rgba(0, 150, 255, 0.2);
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+            border-radius: 4px; position: relative;
+            animation: unstableEnergy 0.8s infinite alternate steps(5);
+        }
+        @keyframes unstableEnergy {
+            0% { border-color: rgba(0, 150, 255, 0.2); }
+            100% { border-color: rgba(0, 255, 255, 0.35); box-shadow: inset 0 0 10px var(--kgi-blue); }
+        }
+        .spacer { width: var(--grid-size); height: var(--grid-size); background: transparent; pointer-events: none; }
 
-  <div class="status" id="status">正在連線至祝福主機...</div>
+        .piece.vip-star {
+            background: linear-gradient(135deg, #bf953f, #fcf6ba, #b38728, #fbf5b7, #aa771c);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+            transform: scale(1.1);
+            filter: drop-shadow(0 0 5px rgba(255, 215, 0, 0.5));
+        }
 
-  <script>
-    // === MQTT 設定 (必須與大螢幕端完全一致) ===
-    const broker = "broker.emqx.io";
-    const port = 8084;
-    const topic = "kgi_event_2025_live_demo_vtaco";
-    const clientID = "sender_" + new Date().getTime();
-
-    const client = new Paho.MQTT.Client(broker, port, clientID);
-    let isConnected = false;
-
-    client.connect({
-      useSSL: true,
-      onSuccess: function () {
-        console.log("連線成功");
-        document.getElementById('status').innerText = "🟢 已連線，請輸入祝福";
-        isConnected = true;
-      },
-      onFailure: function (e) {
-        console.log("連線失敗", e);
-        document.getElementById('status').innerText = "🔴 連線失敗，請重新整理網頁";
-      }
-    });
-
-    function sendMessage() {
-      const office = document.getElementById('office').value.trim();
-      const name = document.getElementById('name').value.trim();
-      const msg = document.getElementById('msg').value.trim();
-      const btn = document.getElementById('sendBtn');
-
-      if (!isConnected) {
-        alert("尚未連線，請稍後再試！");
-        return;
-      }
-      if (!office || !name || !msg) {
-        alert("請完整填寫通訊處、姓名與祝福內容喔！");
-        return;
-      }
-
-      // ✅ 打包成 JSON：三個欄位都送出
-      const payload = JSON.stringify({
-        office: office,
-        name: name,
-        msg: msg
-      });
-
-      try {
-        const message = new Paho.MQTT.Message(payload);
-        message.destinationName = topic;
-        client.send(message);
-
-        // UI 回饋
-        btn.disabled = true;
-        btn.innerText = "發送中...";
-
-        setTimeout(() => {
-          document.getElementById('successMsg').style.display = 'block';
-
-          // 清空欄位（你如果希望保留通訊處不清空，把 office 那行註解掉）
-          document.getElementById('office').value = '';
-          document.getElementById('name').value = '';
-          document.getElementById('msg').value = '';
-
-          btn.innerText = "✨ 再次發送";
-          btn.disabled = false;
-
-          setTimeout(() => {
-            document.getElementById('successMsg').style.display = 'none';
-          }, 3000);
-        }, 500);
-
-      } catch (e) {
-        alert("發送失敗，請重試");
-        console.error(e);
-      }
-    }
-  </script>
-</body>
-</html>
+        .sidebar {
+            flex: 1; background: rgba(5, 15, 30, 0.85); border-left: 3px solid var(--kgi-blue);
+            box-shadow: -20px 0 50px rgba(0, 100, 255, 0.2);
+            display: flex; flex-direction: column; z-index

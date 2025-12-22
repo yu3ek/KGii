@@ -748,23 +748,36 @@ function showVipCouplet(role, displayName, msgText) {
   const targetCol = (role === 'chairman') ? leftCol : rightCol;
   if (!targetCol) return;
 
-  // 根據角色決定要顯示的稱呼
+  // 根據角色決定稱呼
   let nameLabel = '';
   if (role === 'chairman') {
-    nameLabel = '王董 ';
+    nameLabel = '王董';
   } else if (role === 'gm') {
-    nameLabel = '郭總 ';
+    nameLabel = '郭總';
   }
 
   const couplet = document.createElement("div");
   couplet.classList.add("couplet");
-  // 若有稱呼就顯示「王董：內容」，否則只顯示內容
-  couplet.innerText = nameLabel ? `${nameLabel}${msgText}` : msgText;
 
-  // 每一側只保留最新一條春聯
+  // 建立稱呼區塊（字比較大）
+  const nameSpan = document.createElement("span");
+  nameSpan.classList.add("couplet-name");
+  nameSpan.innerText = nameLabel + "：";
+
+  // 建立內容區塊（維持原始尺寸）
+  const textSpan = document.createElement("span");
+  textSpan.classList.add("couplet-text");
+  textSpan.innerText = msgText;
+
+  // vertical 會自動換行
+  couplet.appendChild(nameSpan);
+  couplet.appendChild(textSpan);
+
+  // 每次清除再 append
   targetCol.innerHTML = '';
   targetCol.appendChild(couplet);
 }
+
 
 
 /** 建立星星，從畫面底部飛到標題下方，動畫結束後呼叫 showVipCouplet */

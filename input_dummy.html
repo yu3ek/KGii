@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KGI 測試控制台</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+
+  <style>
+    body {
+      background: #0d1a2f;
+      color: white;
+      font-family: "Microsoft JhengHei";
+      padding: 30px;
+    }
+    h2 {
+      color: #ffd700;
+      letter-spacing: 3px;
+      text-shadow: 0 0 10px rgba(255,215,0,0.6);
+    }
+    .panel {
+      width: 360px;
+      padding: 20px;
+      border: 2px solid #00ffff;
+      border-radius: 8px;
+      background: rgba(0,40,70,0.7);
+      box-shadow: 0 0 20px rgba(0,200,255,0.5);
+    }
+    label {
+      display: block;
+      margin-top: 12px;
+      margin-bottom: 6px;
+      font-weight: bold;
+    }
+    input {
+      width: 100%;
+      padding: 12px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      font-size: 1.1rem;
+      background: #102b4d;
+      color: white;
+    }
+    button {
+      margin-top: 20px;
+      width: 100%;
+      padding: 16px;
+      font-size: 1.2rem;
+      border-radius: 6px;
+      background: linear-gradient(90deg,#00ccee,#0088ff);
+      border: none;
+      color: #fff;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .status {
+      margin-top: 15px;
+      font-size: 1rem;
+      color: #69ffad;
+      min-height: 20px;
+    }
+  </style>
+</head>
+
+<body>
+  <h2>KGI ─ 測試壓力控制台</h2>
+
+  <div class="panel">
+    <label>一次送出幾筆參與者訊息？</label>
+    <input type="number" id="countInput" placeholder="例如：100" />
+
+    <button onclick="startStress()">開始壓力測試</button>
+
+    <div class="status" id="statusBox"></div>
+  </div>
+
+  <script>
+    /* ---------------- MQTT 設定 ---------------- */
+    const broker = "broker.emqx.io";
+    const port = 8084;
+    const topic = "kgi_event_2025_live_demo_vtaco";
+    const clientID = "tester_" + new Date().getTime();
+
+    const client = new Paho.MQTT.Client(broker, port, clientID);
+    let connected = false;
+
+    client.connect({
+      useSSL: true,
+      onSuccess: function () {
+        connected = true;
+        document.getElementById("statusBox").innerText = "MQTT 已連線";
+      },
+      onFailure: function () {
+        document.getElementById("statusBox").innerText = "MQTT 連線失敗，請重整";
+      }
+    });
+
+    /* ---------------- 假資料池 ---------------- */
+    const TEST_OFFICES = ["北一","北二","中一","中二","南一","南二","東一"];
+    const TEST_NAMES   = ["王小明","李小華","高婷婷","陳凱翔","周育誠","林家豪","何美靜"];
+    const TEST_MSGS    = [
+      "衝刺業績","開門紅","獎金爆炸","持續成長",
+      "全台第一","再創高峰","一路發","目標翻倍"
+    ];
+
+    function pick(arr) {
+      return arr[Math.floor(Math.random() * arr.length)];
+    }
+
+    function sendFake() {
+      const payload = JSON.stringify({
+        office: pick(TEST_OFFICES),
+        name: pick(TEST_NAMES),
+        msg: pick(TEST_MSGS)
+      });
+      const m = new Paho.MQTT.Message(payload);
+      m.destinationName = topic;
+      client.send(m);
+    }
+
+    /* ---------------- 入口函數：連噴訊息 ---------------- */
+    function startStress() {
+      if (!connected) {
+        alert("尚未連上 MQTT！");
+        return;
+      }
+
+      const count = parseInt(document.getElementById("countInput").value);
+      if (!count || count <= 0) {
+        alert("請輸入有效的數字");
+        return;
+      }
+
+      document.getElementById("statusBox").innerText =
+        `開始送出 ${count} 筆訊息…`;
+
+      let sent = 0;
+      const timer = setInterval(() => {
+        sendFake();
+        sent++;
+
+        document.getElementById("statusBox").innerText =
+          `已送出 ${sent} / ${count}`;
+
+        if (sent >= count) {
+          clearInterval(timer);
+          document.getElementById("statusBox").innerText =
+            `完成：共送出 ${count} 筆訊息`;
+        }
+      }, 150);
+    }
+  </script>
+</body>
+</html>

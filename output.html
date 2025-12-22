@@ -401,6 +401,10 @@ function initBuilding() {
       const colorClass = determineLogoColor(colIndex, rowIndex);
       div.dataset.colorClass = colorClass;
 
+      // 新增：記下每一格的 row / col，之後用來決定點亮順序
+      div.dataset.row = rowIndex;
+      div.dataset.col = colIndex;
+
       if (cell === 1 || cell === 2) {
         div.classList.add('piece');
         pieces.push(div);
@@ -481,16 +485,28 @@ function determineLogoColor(col, row) {
   return 'c-blue';
 }
 
-/* pick one random empty block */
+/* 從左下往右、再往上依序點亮 */
 function getRandomEmptyIndex() {
-  const emptyIndices = pieces.map((p, index) => {
-    if (p.classList.contains('active')) return -1;
-    return index;
-  }).filter(index => index !== -1);
+  let bestIndex = -1;
+  let bestRow = -1;        // row 越大越下面
+  let bestCol = Infinity;  // 同一 row 下 col 越小越左邊
 
-  if (emptyIndices.length === 0) return -1;
-  return emptyIndices[Math.floor(Math.random() * emptyIndices.length)];
+  pieces.forEach((p, index) => {
+    if (p.classList.contains('active')) return;  // 已經亮過的跳過
+
+    const row = parseInt(p.dataset.row, 10);
+    const col = parseInt(p.dataset.col, 10);
+
+    if (row > bestRow || (row === bestRow && col < bestCol)) {
+      bestRow = row;
+      bestCol = col;
+      bestIndex = index;
+    }
+  });
+
+  return bestIndex;
 }
+
 
 /* ------------------------------------------------------------------ */
 /* 3. Sidebar and CSV */

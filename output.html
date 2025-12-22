@@ -85,7 +85,7 @@
       width: 100%;
       text-align: center;
       font-size: 3.5rem;
-      color: rgba(255, 215, 0, 0.85); /* 黃色標題 */
+      color: rgba(255, 215, 0, 0.85);
       text-shadow: 0 0 10px rgba(0, 71, 157, 0.5);
       letter-spacing: 12px;
       font-weight: 900;
@@ -241,30 +241,6 @@
     .msg-time { color: #aaa; font-size: 0.8rem; }
     .msg-content { font-size: 1.2rem; text-shadow: 1px 1px 2px black; }
 
-    .status-light {
-      position: absolute;
-      top: 20px;
-      right: 20px;
-      background: rgba(0, 0, 0, 0.8);
-      border: 2px solid var(--neon-cyan);
-      padding: 8px 14px;
-      border-radius: 22px;
-      z-index: 200;
-      box-shadow: 0 0 18px var(--neon-cyan);
-      font-weight: bold;
-      font-size: 0.95rem;
-    }
-    .dot {
-      display: inline-block;
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      margin-right: 8px;
-      background: #666;
-      vertical-align: middle;
-    }
-    .dot.online { background: #00ff00; box-shadow: 0 0 10px #00ff00; }
-
     .marquee-container {
       position: absolute;
       top: 0;
@@ -299,27 +275,95 @@
       80% { opacity: 1; }
       100% { bottom: 120%; opacity: 0; transform: scale(1.5) translateY(-100px); }
     }
+
+    /* === VIP 左右直式卡片 === */
+    .vip-column {
+      position: absolute;
+      top: 15vh;
+      bottom: 8vh;
+      width: 20%;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      align-items: stretch;
+      pointer-events: none;
+      z-index: 150;
+    }
+
+    .vip-left {
+      left: 1.5vw;
+    }
+
+    .vip-right {
+      right: 1.5vw;
+    }
+
+    .vip-card {
+      pointer-events: auto;
+      margin-bottom: 16px;
+      padding: 18px 16px;
+      border-radius: 14px;
+      border: 2px solid rgba(255, 215, 0, 0.9);
+      background: radial-gradient(circle at top, rgba(0, 0, 0, 0.9), rgba(10, 30, 60, 0.95));
+      box-shadow: 0 0 25px rgba(255, 215, 0, 0.7);
+      color: #fff;
+      animation: vipFadeIn 0.6s ease-out;
+    }
+
+    .vip-card .vip-role {
+      font-size: 1rem;
+      color: #ffd700;
+      letter-spacing: 2px;
+      margin-bottom: 4px;
+    }
+
+    .vip-card .vip-name {
+      font-size: 1.05rem;
+      font-weight: bold;
+      margin-bottom: 8px;
+      color: #ffffff;
+    }
+
+    .vip-card .vip-msg {
+      font-size: 1.1rem;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+
+    @keyframes vipFadeIn {
+      from { opacity: 0; transform: translateY(20px) scale(0.96); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* Sidebar 中的總結卡片 */
+    .msg-card.vip-summary {
+      border-left-color: gold;
+      box-shadow: 0 0 25px rgba(255, 215, 0, 0.9);
+      background: radial-gradient(circle at top left, rgba(255, 215, 0, 0.35), rgba(0, 0, 0, 0.9));
+    }
+
   </style>
 </head>
 
 <body>
   <div id="particles-js"></div>
 
-  
   <div class="layout-wrapper">
     <div class="main-display" id="displayArea">
-      <div class="status-light">
-        <span class="dot" id="statusDot"></span>
-        <span id="statusText">連線系統初始化...</span>
-      </div>
-
+      <!-- 標題 -->
       <div class="title" id="mainTitle">聚勢成ONE － 共耀凱壽</div>
 
+      <!-- 建築 Logo 區 -->
       <div class="building-wrapper" id="buildingWrapper">
         <div class="building-grid" id="building"></div>
       </div>
 
+      <!-- 跑馬燈訊息 -->
       <div class="marquee-container" id="marqueeArea"></div>
+
+      <!-- VIP 左右直式區塊 -->
+      <div class="vip-column vip-left" id="vipLeft"></div>
+      <div class="vip-column vip-right" id="vipRight"></div>
     </div>
 
     <div class="sidebar">
@@ -368,8 +412,6 @@
 
     const marqueeLanes = [2, 18, 34, 50];
     const laneNextAvailable = [0, 0, 0, 0];
-
-    // 你可調整跑馬燈時間
     const MARQUEE_DURATION_MS = 15000;
 
     function initBuilding() {
@@ -516,7 +558,7 @@
       setTimeout(() => { clickCount = 0; }, 2000);
     }
 
-    // 不排隊：收到就跑（可重疊）
+    // 不排隊：收到就跑（一般參與者）
     function showMarquee(text) {
       const container = document.getElementById('marqueeArea');
       const el = document.createElement('div');
@@ -536,7 +578,7 @@
       if (chosenLaneIndex === -1) chosenLaneIndex = Math.floor(Math.random() * marqueeLanes.length);
 
       el.style.left = marqueeLanes[chosenLaneIndex] + '%';
-      laneNextAvailable[chosenLaneIndex] = now + 2500; // 參考值，不阻擋
+      laneNextAvailable[chosenLaneIndex] = now + 2500;
 
       container.appendChild(el);
 
@@ -545,18 +587,19 @@
       setTimeout(cleanup, MARQUEE_DURATION_MS + 800);
     }
 
+    // 一般參與者訊息處理：跑馬燈＋填格子
     function handleIncoming(displayName, msgText) {
       const now = new Date();
-      const timeStr = now.getHours().toString().padStart(2, '0') + ':' +
-                      now.getMinutes().toString().padStart(2, '0') + ':' +
-                      now.getSeconds().toString().padStart(2, '0');
+      const timeStr =
+        now.getHours().toString().padStart(2, '0') + ':' +
+        now.getMinutes().toString().padStart(2, '0') + ':' +
+        now.getSeconds().toString().padStart(2, '0');
 
       blessingHistory.push({ time: timeStr, name: displayName, msg: msgText });
       addToSidebar(displayName, msgText);
 
       showMarquee(`${displayName}：${msgText}`);
 
-      // 格子：滿了就不填，但跑馬燈照跑
       if (filledCount >= totalPieces) return;
 
       const targetIndex = getRandomEmptyIndex();
@@ -569,6 +612,58 @@
       filledCount++;
     }
 
+    // 董事長 / 總經理總結：只顯示在左右兩側＋sidebar 特別卡片，不跑馬燈、不填格子
+    function handleSummaryMessage(role, displayName, msgText) {
+      const now = new Date();
+      const timeStr =
+        now.getHours().toString().padStart(2, '0') + ':' +
+        now.getMinutes().toString().padStart(2, '0') + ':' +
+        now.getSeconds().toString().padStart(2, '0');
+
+      const roleLabel =
+        role === 'chairman' ? '董事長總結' :
+        role === 'gm' ? '總經理總結' :
+        '管理階層總結';
+
+      // 紀錄到歷史（帶上 [總結] 標記）
+      blessingHistory.push({
+        time: timeStr,
+        name: `[總結] ${displayName}`,
+        msg: msgText
+      });
+
+      // Sidebar 裡放一張特別樣式的卡片
+      const list = document.getElementById('messageList');
+      const card = document.createElement('div');
+      card.classList.add('msg-card', 'vip-summary');
+      card.innerHTML =
+        `<div class="msg-name">
+           <span>${roleLabel}</span>
+           <span class="msg-time">${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}</span>
+         </div>
+         <div class="msg-content">${msgText}</div>`;
+      list.insertBefore(card, list.firstChild);
+
+      // 左右 VIP 區塊顯示（每邊只保留最新一張）
+      const leftCol = document.getElementById('vipLeft');
+      const rightCol = document.getElementById('vipRight');
+      const targetCol = (role === 'chairman') ? leftCol : rightCol;
+
+      if (!targetCol) return;
+
+      const vipCard = document.createElement('div');
+      vipCard.classList.add('vip-card');
+      vipCard.innerHTML = `
+        <div class="vip-role">${roleLabel}</div>
+        <div class="vip-name">${displayName}</div>
+        <div class="vip-msg">${msgText}</div>
+      `;
+
+      // 每個角色只顯示最後一次送出的版本
+      targetCol.innerHTML = '';
+      targetCol.appendChild(vipCard);
+    }
+
     // === MQTT ===
     const broker = "broker.emqx.io";
     const port = 8084;
@@ -578,8 +673,6 @@
     const client = new Paho.MQTT.Client(broker, port, clientID);
 
     client.onConnectionLost = function () {
-      document.getElementById('statusDot').classList.remove('online');
-      document.getElementById('statusText').innerText = "連線中斷...";
       setTimeout(connectMQTT, 2000);
     };
 
@@ -590,9 +683,22 @@
         const office = (data.office || "").trim();
         const name = (data.name || "").trim();
         const msgText = (data.msg || "").trim();
+        const role = (data.role || "participant").trim();   // participant / chairman / gm
+        const type = (data.type || "wish").trim();          // wish / summary
 
-        const displayName = office ? `${office} / ${name}` : (name || (data.displayName || "匿名"));
-        handleIncoming(displayName, msgText);
+        if (!msgText) return;
+
+        const displayName = office
+          ? `${office} / ${name}`
+          : (name || (data.displayName || "匿名"));
+
+        if (type === "summary") {
+          // 總結訊息：只在左右 VIP 區＋sidebar 顯示
+          handleSummaryMessage(role, displayName, msgText);
+        } else {
+          // 一般願望：走原本流程（跑馬燈＋填格子）
+          handleIncoming(displayName, msgText);
+        }
 
       } catch (e) {
         console.error("訊息解析失敗", e);
@@ -603,8 +709,6 @@
       client.connect({
         useSSL: true,
         onSuccess: function () {
-          document.getElementById('statusDot').classList.add('online');
-          document.getElementById('statusText').innerText = `系統連線就緒`;
           client.subscribe(topic);
         },
         onFailure: function () {}

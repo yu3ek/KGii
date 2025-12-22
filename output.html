@@ -803,7 +803,7 @@ function handleSummaryMessage(role, displayName, msgText) {
   // 紀錄到 history（CSV 用）
   blessingHistory.push({
     time: timeStr,
-    //name: `[總結] ${displayName}`,
+    name: `{displayName}`,
     msg: msgText
   });
 

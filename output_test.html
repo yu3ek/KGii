@@ -667,12 +667,14 @@ function handleIncoming(displayName, msgText) {
   targetPiece.classList.add(colorClass);
   targetPiece.classList.add('active');
   filledCount++;
+
+  // ★ 正確位置：每次點亮後檢查是否「第一次填滿」
+  if (filledCount >= totalPieces && !buildingFilledTime) {
+    buildingFilledTime = Date.now();
+    console.log("Building is fully lit at", new Date(buildingFilledTime).toLocaleTimeString());
+  }
 }
 
-/* ★ 新增：第一次填滿時，記錄時間 */
-if (filledCount >= totalPieces && !buildingFilledTime) {
-  buildingFilledTime = Date.now();
-}
 
 /* 檢查是否已經「全亮滿 30 秒」，如果是就把排隊中的 summary 全部放出來 */
 function flushPendingSummariesIfReady() {

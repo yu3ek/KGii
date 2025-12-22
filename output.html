@@ -112,16 +112,29 @@
       margin: 0 auto;
     }
 
-    /* ⭐ VIP 星星（從畫面底部飛到標題下方偏中間） */
+    /* ⭐ VIP 星星（五角星） */
     .vip-star {
       position: absolute;
-      width: 60px;
+      width: 60px;        /* 星星大小 */
       height: 60px;
-      border-radius: 50%;
       background: #ffd700;
-      box-shadow: 0 0 20px rgba(255, 215, 0, 0.9);
+      box-shadow: 0 0 35px rgba(255, 215, 0, 1); /* 金色光暈 */
       z-index: 160;
       animation: vipStarFly 1.2s ease-out forwards;
+    
+      /* 五角星形狀 */
+      clip-path: polygon(
+        50% 0%,
+        61% 35%,
+        98% 35%,
+        68% 57%,
+        79% 91%,
+        50% 70%,
+        21% 91%,
+        32% 57%,
+        2% 35%,
+        39% 35%
+      );
     }
     
     /* 左星靠中間偏左、右星靠中間偏右 */

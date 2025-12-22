@@ -669,6 +669,26 @@ function handleIncoming(displayName, msgText) {
   filledCount++;
 }
 
+/* ★ 新增：第一次填滿時，記錄時間 */
+if (filledCount >= totalPieces && !buildingFilledTime) {
+  buildingFilledTime = Date.now();
+}
+
+/* 檢查是否已經「全亮滿 30 秒」，如果是就把排隊中的 summary 全部放出來 */
+function flushPendingSummariesIfReady() {
+  if (!buildingFilledTime) return;  // 大樓還沒全亮
+  const now = Date.now();
+
+  // 還沒到全亮 + 30 秒
+  if (now - buildingFilledTime < SUMMARY_DELAY_MS) return;
+
+  // 可以播放所有排隊中的 summary
+  while (pendingSummaryMessages.length > 0) {
+    const item = pendingSummaryMessages.shift();
+    handleSummaryMessage(item.role, item.displayName, item.msgText);
+  }
+}
+  
 /* ------------------------------------------------------------------ */
 /* 5. Summary handling (Chairman / GM spring couplets + stars) */
 /* ------------------------------------------------------------------ */
@@ -784,8 +804,18 @@ client.onMessageArrived = function (msg) {
       : (name || (data.displayName || "匿名"));
 
     if (type === "summary") {
-      handleSummaryMessage(role, displayName, msgText);
+      // 先排隊，不馬上播
+      pendingSummaryMessages.push({
+        role,
+        displayName,
+        msgText,
+        receivedAt: Date.now()
+      });
+    
+      // 若大樓早就全亮 + 超過 30 秒了，可能立刻就會被 flush 出來
+      flushPendingSummariesIfReady();
     } else {
+      // 一般願望：走原本流程（跑馬燈＋填格子）
       handleIncoming(displayName, msgText);
     }
 

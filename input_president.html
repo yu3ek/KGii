@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>總經理專用祝福總結</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+  <style>
+    :root {
+      --bg-color: #050914;
+      --kgi-orange: #f39800;
+      --kgi-blue: #0056b3;
+      --vip-gold: #ffd700;
+      --text-color: #fff;
+    }
+
+    body {
+      margin: 0;
+      padding: 20px;
+      background: radial-gradient(circle at top, #12284a 0%, #050914 60%, #000000 100%);
+      color: var(--text-color);
+      font-family: "Microsoft JhengHei", sans-serif;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      box-sizing: border-box;
+    }
+
+    h2 {
+      text-align: center;
+      color: var(--vip-gold);
+      margin-bottom: 20px;
+      font-size: 1.6rem;
+      letter-spacing: 4px;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #ccc;
+      margin-bottom: 24px;
+      font-size: 0.95rem;
+      line-height: 1.4;
+    }
+
+    .card {
+      background: rgba(0, 0, 0, 0.55);
+      border-radius: 16px;
+      border: 1px solid rgba(255, 215, 0, 0.6);
+      box-shadow: 0 0 25px rgba(255, 215, 0, 0.4);
+      padding: 20px 18px 24px;
+      max-width: 600px;
+      width: 100%;
+      margin: 0 auto;
+      box-sizing: border-box;
+    }
+
+    .input-group {
+      margin-bottom: 18px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 6px;
+      color: #ddd;
+      font-size: 0.95rem;
+    }
+
+    input, textarea {
+      width: 100%;
+      padding: 12px;
+      background: #101b33;
+      border: 1px solid #444;
+      color: white;
+      border-radius: 8px;
+      box-sizing: border-box;
+      font-size: 1.02rem;
+      resize: vertical;
+    }
+
+    textarea {
+      min-height: 100px;
+      max-height: 200px;
+    }
+
+    input:focus, textarea:focus {
+      outline: none;
+      border-color: var(--vip-gold);
+      background: #182440;
+    }
+
+    .hint {
+      font-size: 0.8rem;
+      color: #aaa;
+      margin-top: 4px;
+      text-align: right;
+    }
+
+    button {
+      width: 100%;
+      padding: 15px;
+      margin-top: 10px;
+      border: none;
+      border-radius: 999px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 1.1rem;
+      background: linear-gradient(90deg, var(--vip-gold), var(--kgi-blue));
+      color: #000;
+      box-shadow: 0 4px 18px rgba(255, 215, 0, 0.6);
+      transition: transform 0.1s, box-shadow 0.1s;
+    }
+
+    button:active {
+      transform: scale(0.98);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.7);
+    }
+
+    button:disabled {
+      background: #555;
+      color: #ccc;
+      box-shadow: none;
+      cursor: not-allowed;
+    }
+
+    .status {
+      text-align: center;
+      margin-top: 15px;
+      font-size: 0.9rem;
+      color: #bbb;
+    }
+
+    .success-msg {
+      display: none;
+      text-align: center;
+      margin-top: 18px;
+      padding: 12px;
+      background: rgba(0, 255, 0, 0.08);
+      border: 1px solid #00ff00;
+      border-radius: 10px;
+      color: #9cff9c;
+      line-height: 1.5;
+      font-size: 0.95rem;
+    }
+
+    .warning-msg {
+      display: none;
+      text-align: center;
+      margin-top: 12px;
+      padding: 10px;
+      background: rgba(255, 165, 0, 0.08);
+      border: 1px solid rgba(255, 165, 0, 0.8);
+      border-radius: 10px;
+      color: #ffdd99;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+
+<body>
+  <h2>總經理專用祝福總結</h2>
+  <div class="subtitle">
+    這裡輸入的內容將於大螢幕上以「總結」形式重點呈現<br/>
+    可銜接董事長觀點，補充策略方向與對團隊的勉勵
+  </div>
+
+  <div class="card">
+    <div class="input-group">
+      <label for="name">顯示名稱</label>
+      <input type="text" id="name" value="總經理" />
+      <div class="hint">將顯示於大螢幕上，例如：總經理、總經理 XXX</div>
+    </div>
+
+    <div class="input-group">
+      <label for="msg">總結祝福內容（建議 80 字內）</label>
+      <textarea id="msg" maxlength="120"
+        placeholder="例如：感謝各位在變局中的努力與堅持，新的一年我們將聚焦價值成長、客戶體驗與團隊共好......"></textarea>
+      <div class="hint">目前字數：<span id="charCount">0</span> / 120</div>
+    </div>
+
+    <button id="sendBtn" onclick="sendSummary()">✨ 發送總經理總結到大螢幕</button>
+
+    <div class="success-msg" id="successMsg">
+      已成功發送至大螢幕。<br/>
+      若需要調整內容，可再次輸入並送出更新版本。
+    </div>
+
+    <div class="warning-msg" id="warningMsg">
+      目前與主機連線中斷中，如持續無法連線，請聯繫現場工作人員。
+    </div>
+
+    <div class="status" id="status">正在連線至主機...</div>
+  </div>
+
+  <script>
+    // === MQTT 設定（需與顯示端一致） ===
+    const broker = "broker.emqx.io";
+    const port = 8084;
+    const topic = "kgi_event_2025_live_demo_vtaco";
+    const clientID = "gm_" + new Date().getTime();
+
+    const client = new Paho.MQTT.Client(broker, port, clientID);
+    let isConnected = false;
+
+    const statusEl = document.getElementById('status');
+    const successEl = document.getElementById('successMsg');
+    const warningEl = document.getElementById('warningMsg');
+    const charCountEl = document.getElementById('charCount');
+    const msgInput = document.getElementById('msg');
+
+    msgInput.addEventListener('input', () => {
+      charCountEl.textContent = msgInput.value.length;
+    });
+
+    client.onConnectionLost = function (responseObject) {
+      console.log("連線中斷", responseObject);
+      isConnected = false;
+      statusEl.innerText = "🔴 連線中斷，請稍候或重新整理頁面";
+      warningEl.style.display = "block";
+    };
+
+    client.connect({
+      useSSL: true,
+      onSuccess: function () {
+        console.log("連線成功（總經理）");
+        statusEl.innerText = "🟢 已連線，可以隨時發送總結訊息";
+        isConnected = true;
+      },
+      onFailure: function (e) {
+        console.log("連線失敗", e);
+        statusEl.innerText = "🔴 連線失敗，請重新整理或請現場人員協助";
+        warningEl.style.display = "block";
+      }
+    });
+
+    function sendSummary() {
+      const name = document.getElementById('name').value.trim();
+      const msg = document.getElementById('msg').value.trim();
+      const btn = document.getElementById('sendBtn');
+
+      if (!isConnected) {
+        alert("目前尚未成功連線，請稍後再試或聯繫現場人員。");
+        return;
+      }
+      if (!name || !msg) {
+        alert("請填寫顯示名稱與總結內容。");
+        return;
+      }
+
+      if (!confirm("確定要將這段總結顯示在大螢幕上嗎？")) {
+        return;
+      }
+
+      const payload = JSON.stringify({
+        role: "gm",          // 固定：總經理
+        type: "summary",     // 固定：總結
+        office: "",          // 可留空
+        name: name,
+        msg: msg
+      });
+
+      try {
+        const message = new Paho.MQTT.Message(payload);
+        message.destinationName = topic;
+        client.send(message);
+
+        btn.disabled = true;
+        btn.innerText = "已發送，稍候片刻...";
+
+        successEl.style.display = "block";
+        warningEl.style.display = "none";
+
+        setTimeout(() => {
+          btn.disabled = false;
+          btn.innerText = "✨ 再次發送更新版本";
+        }, 4000);
+      } catch (e) {
+        console.error(e);
+        alert("發送失敗，請再試一次或請現場人員協助。");
+      }
+    }
+  </script>
+</body>
+</html>

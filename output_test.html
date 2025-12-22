@@ -456,7 +456,7 @@ function initBuilding() {
       const colorClass = determineLogoColor(colIndex, rowIndex);
       div.dataset.colorClass = colorClass;
 
-      // 新增：記下每一格的 row / col，之後用來決定點亮順序
+      // 記下每一格的 row / col，之後用來決定點亮順序
       div.dataset.row = rowIndex;
       div.dataset.col = colIndex;
 
@@ -616,7 +616,21 @@ const marqueeLanes = [2, 18, 34, 50];
 const laneNextAvailable = [0, 0, 0, 0];
 const MARQUEE_DURATION_MS = 15000;
 
+/* ✅ 新增：跑馬燈是否啟用（預設 true） */
+let marqueeEnabled = true;
+
+/* ✅ 新增：停用跑馬燈並清空現有項目 */
+function suspendMarquee() {
+  marqueeEnabled = false;
+  const container = document.getElementById('marqueeArea');
+  if (!container) return;
+  container.querySelectorAll('.marquee-item').forEach(el => el.remove());
+}
+
 function showMarquee(text) {
+  /* ✅ 新增：若已停用跑馬燈，直接不顯示 */
+  if (!marqueeEnabled) return;
+
   const container = document.getElementById('marqueeArea');
   const el = document.createElement('div');
   el.classList.add('marquee-item');
@@ -740,6 +754,9 @@ function startVipStar(role, displayName, msgText) {
 
 /** 收到董事長 / 總經理的 summary 訊息入口 */
 function handleSummaryMessage(role, displayName, msgText) {
+  /* ✅ 一進入 VIP 段落就關掉跑馬燈 */
+  suspendMarquee();
+
   const now = new Date();
   const timeStr =
     now.getHours().toString().padStart(2, '0') + ':' +

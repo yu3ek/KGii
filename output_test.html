@@ -174,7 +174,7 @@
       border-radius: 4px;
       position: relative;
       box-shadow:
-        0 0 8px rgba(0, 180, 255, 0.25),
+        0 0 8px rgba(100, 180, 255, 0.25),
         inset 0 0 10px rgba(0, 150, 255, 0.15);
       transition: transform 0.3s, box-shadow 0.3s, border-color 0.3s;
     }
@@ -190,11 +190,15 @@
     }
 
     .piece.active {
-      z-index: 100;
-      transform: scale(1.08) translateZ(6vh);
-      animation: activePlasma 0.5s infinite alternate !important;
-      border-width: 0 !important;
+      border-color: rgba(100, 255, 255, 1);
+      box-shadow:
+        0 0 18px rgba(0, 255, 255, 1),
+        0 0 30px rgba(0, 180, 255, 0.9),
+        inset 0 0 12px rgba(0, 255, 255, 0.5);
+      transform: scale(1.12) translateZ(8vh);
+      border-width: 2px;
     }
+
     @keyframes activePlasma {
       from { filter: brightness(1); }
       to { filter: brightness(1.2) contrast(1.1); }

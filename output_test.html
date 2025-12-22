@@ -836,6 +836,9 @@ function connectMQTT() {
 
 initBuilding();
 connectMQTT();
+
+/* 每秒檢查一次，看大樓是否已全亮滿 30 秒，若是就播放 summary */
+setInterval(flushPendingSummariesIfReady, 1000);
 </script>
 
 </body>

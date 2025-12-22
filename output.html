@@ -635,7 +635,7 @@ function handleSummaryMessage(role, displayName, msgText) {
   const targetCol = (role === 'chairman') ? leftCol : rightCol;
   if (!targetCol) return;
 
-  const chars = [...msgText].join("\n");
+  const chars = msgText;
 
   const couplet = document.createElement("div");
   couplet.classList.add("couplet");

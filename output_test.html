@@ -81,16 +81,19 @@
 
     .title {
       position: absolute;
-      top: 3vh;
+      top: 2vh;
       width: 100%;
       text-align: center;
-      font-size: 3.5rem;
-      color: rgba(255, 215, 0, 0.85);
-      text-shadow: 0 0 10px rgba(0, 71, 157, 0.5);
-      letter-spacing: 16px;
+      font-size: 5rem; /* 原本 3.5rem */
       font-weight: 900;
-      z-index: 20;
-      transform: scale(0.95);
+      letter-spacing: 18px;
+      color: rgba(255, 215, 0, 0.95);
+      text-shadow:
+        0 0 25px rgba(255, 215, 0, 0.8),
+        0 0 45px rgba(255, 150, 0, 0.6),
+        0 0 65px rgba(0, 100, 255, 0.6);
+      z-index: 200;
+      animation: titleGlow 4s ease-in-out infinite;
     }
 
     .building-wrapper {

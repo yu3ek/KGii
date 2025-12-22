@@ -759,7 +759,7 @@ function showVipCouplet(role, displayName, msgText) {
   const couplet = document.createElement("div");
   couplet.classList.add("couplet");
   // 若有稱呼就顯示「王董：內容」，否則只顯示內容
-  couplet.innerText = nameLabel ? `${nameLabel}：${msgText}` : msgText;
+  couplet.innerText = nameLabel ? `${nameLabel}${msgText}` : msgText;
 
   // 每一側只保留最新一條春聯
   targetCol.innerHTML = '';
@@ -805,9 +805,9 @@ function handleSummaryMessage(role, displayName, msgText) {
     now.getSeconds().toString().padStart(2, '0');
 
   const roleLabel =
-    role === 'chairman' ? '董事長總結' :
-    role === 'gm'       ? '總經理總結' :
-                          '管理階層總結';
+    role === 'chairman' ? '董事長' :
+    role === 'gm'       ? '總經理' :
+                          '管理階層';
 
   // 紀錄到 history（CSV 用）
   blessingHistory.push({

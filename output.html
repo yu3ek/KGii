@@ -18,7 +18,7 @@
 
       --grid-size: min(8.2vh, 8.2vw);
     }
-
+    
     body {
       margin: 0;
       padding: 0;
@@ -112,6 +112,44 @@
       margin: 0 auto;
     }
 
+    /* ⭐ VIP 星星（從畫面底部飛到標題下方偏中間） */
+    .vip-star {
+      position: absolute;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: #ffd700;
+      box-shadow: 0 0 20px rgba(255, 215, 0, 0.9);
+      z-index: 160;
+      animation: vipStarFly 1.2s ease-out forwards;
+    }
+    
+    /* 左星靠中間偏左、右星靠中間偏右 */
+    .vip-star-left {
+      left: 46%;
+    }
+    .vip-star-right {
+      left: 54%;
+    }
+    
+    /* 從畫面最下方飛上來，停在標題下方 */
+    @keyframes vipStarFly {
+      0% {
+        top: 100vh;
+        opacity: 0;
+        transform: scale(0.6);
+      }
+      30% {
+        opacity: 1;
+      }
+      100% {
+        top: 12vh;   /* 星星停的位置：標題底下 */
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    
     .piece {
       width: var(--grid-size);
       height: var(--grid-size);
@@ -615,8 +653,53 @@ function handleIncoming(displayName, msgText) {
 }
 
 /* ------------------------------------------------------------------ */
-/* 5. Summary handling (Chairman / GM spring couplets) */
+/* 5. Summary handling (Chairman / GM spring couplets + stars) */
 /* ------------------------------------------------------------------ */
+
+/** 星星飛完後，才在左右兩側顯示春聯 */
+function showVipCouplet(role, displayName, msgText) {
+  const leftCol  = document.getElementById('vipLeft');
+  const rightCol = document.getElementById('vipRight');
+  const targetCol = (role === 'chairman') ? leftCol : rightCol;
+  if (!targetCol) return;
+
+  // 保持你原本的顯示內容：只用 msgText，不額外加前綴
+  const couplet = document.createElement("div");
+  couplet.classList.add("couplet");
+  couplet.innerText = msgText;
+
+  // 每一側只保留最新一條春聯
+  targetCol.innerHTML = '';
+  targetCol.appendChild(couplet);
+}
+
+/** 建立星星，從畫面底部飛到標題下方，動畫結束後呼叫 showVipCouplet */
+function startVipStar(role, displayName, msgText) {
+  const displayArea = document.getElementById('displayArea');
+  if (!displayArea) return;
+
+  const star = document.createElement('div');
+  star.classList.add('vip-star');
+
+  if (role === 'chairman') {
+    star.classList.add('vip-star-left');
+  } else if (role === 'gm') {
+    star.classList.add('vip-star-right');
+  } else {
+    // 其他角色就先放中間
+    star.style.left = '50%';
+    star.style.transform = 'translateX(-50%)';
+  }
+
+  displayArea.appendChild(star);
+
+  // 星星動畫跑完後，再顯示春聯
+  star.addEventListener('animationend', () => {
+    showVipCouplet(role, displayName, msgText);
+  }, { once: true });
+}
+
+/** 收到董事長 / 總經理的 summary 訊息入口 */
 function handleSummaryMessage(role, displayName, msgText) {
   const now = new Date();
   const timeStr =
@@ -626,15 +709,17 @@ function handleSummaryMessage(role, displayName, msgText) {
 
   const roleLabel =
     role === 'chairman' ? '董事長總結' :
-    role === 'gm' ? '總經理總結' :
-    '管理階層總結';
+    role === 'gm'       ? '總經理總結' :
+                          '管理階層總結';
 
+  // 紀錄到 history（CSV 用）
   blessingHistory.push({
     time: timeStr,
     name: `[總結] ${displayName}`,
     msg: msgText
   });
 
+  // Sidebar 裡放一張特別樣式的卡片
   const list = document.getElementById('messageList');
   const card = document.createElement('div');
   card.classList.add('msg-card', 'vip-summary');
@@ -646,20 +731,10 @@ function handleSummaryMessage(role, displayName, msgText) {
      <div class="msg-content">${msgText}</div>`;
   list.insertBefore(card, list.firstChild);
 
-  const leftCol = document.getElementById('vipLeft');
-  const rightCol = document.getElementById('vipRight');
-  const targetCol = (role === 'chairman') ? leftCol : rightCol;
-  if (!targetCol) return;
-
-  const chars = msgText;
-
-  const couplet = document.createElement("div");
-  couplet.classList.add("couplet");
-  couplet.innerText = msgText;
-
-  targetCol.innerHTML = '';
-  targetCol.appendChild(couplet);
+  // 啟動星星動畫（動畫結束後才會出現春聯）
+  startVipStar(role, displayName, msgText);
 }
+
 
 /* ------------------------------------------------------------------ */
 /* 6. MQTT */

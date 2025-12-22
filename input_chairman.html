@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport"
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>董事長專用祝福總結</title>
+  <title>董事長專用祝福</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
   <style>
     :root {
@@ -158,9 +158,9 @@
 </head>
 
 <body>
-  <h2>董事長專用祝福總結</h2>
+  <h2>董事長專用祝福</h2>
   <div class="subtitle">
-    這裡輸入的內容將於大螢幕上以「總結」形式重點呈現<br/>
+    這裡輸入的內容將於大螢幕上重點呈現<br/>
     建議一句到數句話，統整對全體同仁的期許與勉勵
   </div>
 
@@ -172,13 +172,13 @@
     </div>
 
     <div class="input-group">
-      <label for="msg">總結祝福內容（建議 80 字內）</label>
+      <label for="msg">祝福內容（建議 80 字內）</label>
       <textarea id="msg" maxlength="120"
         placeholder="例如：感謝各位夥伴一同聚勢成 ONE，未來我們將在凱基金控的支持下，持續追求成長與創新......"></textarea>
       <div class="hint">目前字數：<span id="charCount">0</span> / 120</div>
     </div>
 
-    <button id="sendBtn" onclick="sendSummary()">✨ 發送董事長總結到大螢幕</button>
+    <button id="sendBtn" onclick="sendSummary()">✨ 發送董事長祝福到大螢幕</button>
 
     <div class="success-msg" id="successMsg">
       已成功發送至大螢幕。<br/>
@@ -223,7 +223,7 @@
       useSSL: true,
       onSuccess: function () {
         console.log("連線成功（董事長）");
-        statusEl.innerText = "🟢 已連線，可以隨時發送總結訊息";
+        statusEl.innerText = "🟢 已連線，可以隨時發送祝福";
         isConnected = true;
       },
       onFailure: function (e) {
@@ -243,18 +243,18 @@
         return;
       }
       if (!name || !msg) {
-        alert("請填寫顯示名稱與總結內容。");
+        alert("請填寫顯示名稱與祝福。");
         return;
       }
 
       // 確認視窗，避免誤觸
-      if (!confirm("確定要將這段總結顯示在大螢幕上嗎？")) {
+      if (!confirm("確定要將這段祝福顯示在大螢幕上嗎？")) {
         return;
       }
 
       const payload = JSON.stringify({
         role: "chairman",    // 固定：董事長
-        type: "summary",     // 固定：總結
+        type: "summary",     // 固定：
         office: "",          // 可留空，顯示端會以 name 為主
         name: name,
         msg: msg

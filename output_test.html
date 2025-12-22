@@ -204,6 +204,30 @@
       to { filter: brightness(1.2) contrast(1.1); }
     }
 
+/*新增額外效果*/e::after {
+      content: "";
+      position: absolute;
+      width: 140%;
+      height: 140%;
+      top: -20%;
+      left: -20%;
+      background: linear-gradient(
+        45deg,
+        transparent,
+        rgba(0,255,255,0.6),
+        transparent
+      );
+      opacity: 0;
+      transform: rotate(0deg);
+      animation: borderSweep 4s linear infinite;
+    }
+
+@keyframes borderSweep {
+  0%   { opacity: 0; transform: rotate(0deg); }
+  40%  { opacity: .3; }
+  100% { opacity: 0; transform: rotate(360deg); }
+}
+    
     .spacer {
       width: var(--grid-size);
       height: var(--grid-size);

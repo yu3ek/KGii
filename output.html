@@ -444,9 +444,10 @@
       user-select: none;
     }
     .qr-box canvas,
+    /* qr code大小*/
     .qr-box img{
-      width: 280px;
-      height: 280px;
+      width: 250px;
+      height: 250px;
       display: block;
     }
     .qr-hint{
@@ -527,8 +528,9 @@ function initQRCode(){
 
   new QRCode(qrTarget, {
     text: QR_TARGET_URL,
-    width: 280,
-    height: 280,
+    /*qrcode大小*/
+    width: 250,
+    height: 250,
     colorDark: "#000000",
     colorLight: "#ffffff",
     correctLevel: QRCode.CorrectLevel.H

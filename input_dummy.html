@@ -17,6 +17,13 @@
       color: #ffd700;
       letter-spacing: 3px;
       text-shadow: 0 0 10px rgba(255,215,0,0.6);
+      margin: 0 0 18px 0;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+      gap: 18px;
+      align-items: start;
     }
     .panel {
       width: 360px;
@@ -26,26 +33,36 @@
       background: rgba(0,40,70,0.7);
       box-shadow: 0 0 20px rgba(0,200,255,0.5);
     }
+    .panel h3{
+      margin: 0 0 12px 0;
+      color: #7df9ff;
+      letter-spacing: 2px;
+      font-size: 1.15rem;
+    }
     label {
       display: block;
       margin-top: 12px;
       margin-bottom: 6px;
       font-weight: bold;
     }
-    input {
+    input, select, textarea {
       width: 100%;
       padding: 12px;
       border-radius: 5px;
-      border: 1px solid #ccc;
-      font-size: 1.1rem;
+      border: 1px solid #2b4667;
+      font-size: 1.05rem;
       background: #102b4d;
       color: white;
+      box-sizing: border-box;
+      outline: none;
     }
+    textarea { resize: vertical; min-height: 84px; }
+
     button {
-      margin-top: 20px;
+      margin-top: 14px;
       width: 100%;
-      padding: 16px;
-      font-size: 1.2rem;
+      padding: 14px;
+      font-size: 1.1rem;
       border-radius: 6px;
       background: linear-gradient(90deg,#00ccee,#0088ff);
       border: none;
@@ -53,49 +70,226 @@
       font-weight: bold;
       cursor: pointer;
     }
+    button.secondary{
+      background: linear-gradient(90deg,#ffd700,#ff8a00);
+      color: #0d1a2f;
+    }
+    button.danger{
+      background: linear-gradient(90deg,#ff5c7a,#ff2442);
+    }
+    button:disabled{
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .row2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
     .status {
-      margin-top: 15px;
-      font-size: 1rem;
+      margin-top: 12px;
+      font-size: 0.95rem;
       color: #69ffad;
       min-height: 20px;
+      white-space: pre-line;
     }
+    .small {
+      font-size: 0.9rem;
+      opacity: 0.85;
+      line-height: 1.5;
+      margin-top: 8px;
+    }
+    .pill {
+      display: inline-block;
+      padding: 4px 10px;
+      border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 999px;
+      margin-top: 6px;
+      font-size: 0.85rem;
+      opacity: 0.9;
+    }
+    .pill.ok { border-color: rgba(105,255,173,0.6); color:#69ffad; }
+    .pill.bad { border-color: rgba(255,92,122,0.6); color:#ff9bb0; }
   </style>
 </head>
 
 <body>
-  <h2>KGI ─ 測試壓力控制台</h2>
+  <h2>KGI ─ 測試壓力控制台（含 VIP 主控）</h2>
 
-  <div class="panel">
-    <label>一次送出幾筆參與者訊息？</label>
-    <input type="number" id="countInput" placeholder="例如：100" />
+  <div class="grid">
+    <!-- 連線設定 -->
+    <div class="panel">
+      <h3>連線設定</h3>
 
-    <button onclick="startStress()">開始壓力測試</button>
+      <label>Broker</label>
+      <input id="brokerInput" value="broker.emqx.io" />
 
-    <div class="status" id="statusBox"></div>
+      <label>Port（WSS）</label>
+      <input id="portInput" type="number" value="8084" />
+
+      <label>主 Topic（參與者 wish / summary）</label>
+      <input id="topicInput" value="kgi_event_2025_live_demo_vtaco" />
+
+      <label>控制 Topic（Output 端控制）</label>
+      <input id="controlTopicInput" value="kgi_event_2025_live_demo_vtaco_control" />
+
+      <div class="row2">
+        <button id="connectBtn" onclick="connectMQTT()">連線 MQTT</button>
+        <button class="danger" id="disconnectBtn" onclick="disconnectMQTT()" disabled>斷線</button>
+      </div>
+
+      <div class="status" id="connStatus">尚未連線</div>
+      <div class="pill bad" id="connPill">DISCONNECTED</div>
+      <div class="small">
+        建議：先按「連線 MQTT」，再做壓力測試/控制。
+      </div>
+    </div>
+
+    <!-- 壓力測試 -->
+    <div class="panel">
+      <h3>壓力測試（參與者訊息）</h3>
+
+      <label>一次送出幾筆參與者訊息？</label>
+      <input type="number" id="countInput" placeholder="例如：100" />
+
+      <label>送出間隔（毫秒）</label>
+      <input type="number" id="intervalInput" value="150" />
+
+      <button onclick="startStress()">開始壓力測試</button>
+      <button class="danger" onclick="stopStress()" id="stopStressBtn" disabled>停止</button>
+
+      <div class="status" id="stressStatus"></div>
+      <div class="small">
+        此區送的是 wish（一般參與者）到「主 Topic」。
+      </div>
+    </div>
+
+    <!-- VIP 主控台 -->
+    <div class="panel">
+      <h3>VIP 主控台（控制 Output）</h3>
+
+      <div class="row2">
+        <button class="secondary" onclick="sendControl('dim_building')">① 變暗</button>
+        <button class="secondary" onclick="sendControl('undim_building')">恢復亮度</button>
+      </div>
+
+      <div class="row2">
+        <button onclick="sendControl('play_gm')">② 總經理 星星＋春聯</button>
+        <button onclick="sendControl('play_chairman')">③ 董事長 星星＋春聯</button>
+      </div>
+
+      <div class="row2">
+        <button onclick="sendControl('next_step')">下一步（等同右下角）</button>
+        <button class="danger" onclick="sendControl('reset_vip')">重置 VIP</button>
+      </div>
+
+      <div class="status" id="vipStatus"></div>
+      <div class="small">
+        此區送的是控制訊息到「控制 Topic」。Output 端需已 subscribe <b>_control</b>。
+      </div>
+    </div>
+
+    <!-- Summary 測試注入（可選） -->
+    <div class="panel">
+      <h3>Summary 測試注入（可選）</h3>
+
+      <label>角色</label>
+      <select id="summaryRole">
+        <option value="gm">gm（總經理）</option>
+        <option value="chairman">chairman（董事長）</option>
+      </select>
+
+      <label>顯示名稱（displayName）</label>
+      <input id="summaryName" placeholder="例如：總經理 / 郭總" value="管理階層" />
+
+      <label>內容（msg）</label>
+      <textarea id="summaryMsg" placeholder="例如：聚勢成ONE，共耀凱壽！">聚勢成ONE，共耀凱壽！</textarea>
+
+      <button class="secondary" onclick="sendSummary()">送出 Summary（到主 Topic）</button>
+
+      <div class="status" id="summaryStatus"></div>
+      <div class="small">
+        這是「送 summary 訊息」到主 Topic，讓 Output 端收到 gm/chairman 的 summary 可被 play。
+      </div>
+    </div>
   </div>
 
   <script>
-    /* ---------------- MQTT 設定 ---------------- */
-    const broker = "broker.emqx.io";
-    const port = 8084;
-    const topic = "kgi_event_2025_live_demo_vtaco";
-    const clientID = "tester_" + new Date().getTime();
-
-    const client = new Paho.MQTT.Client(broker, port, clientID);
+    /* ---------------- MQTT 共用 ---------------- */
+    let client = null;
     let connected = false;
 
-    client.connect({
-      useSSL: true,
-      onSuccess: function () {
-        connected = true;
-        document.getElementById("statusBox").innerText = "MQTT 已連線";
-      },
-      onFailure: function () {
-        document.getElementById("statusBox").innerText = "MQTT 連線失敗，請重整";
-      }
-    });
+    function nowStr(){
+      const d = new Date();
+      return d.toLocaleTimeString();
+    }
 
-    /* ---------------- 假資料池 ---------------- */
+    function setConnUI(ok, text){
+      document.getElementById("connStatus").innerText = text || "";
+      const pill = document.getElementById("connPill");
+      if (ok) {
+        pill.className = "pill ok";
+        pill.innerText = "CONNECTED";
+      } else {
+        pill.className = "pill bad";
+        pill.innerText = "DISCONNECTED";
+      }
+      document.getElementById("connectBtn").disabled = ok;
+      document.getElementById("disconnectBtn").disabled = !ok;
+      connected = ok;
+    }
+
+    function connectMQTT(){
+      const broker = document.getElementById("brokerInput").value.trim();
+      const port = parseInt(document.getElementById("portInput").value, 10);
+      const clientID = "console_" + new Date().getTime();
+
+      if (!broker || !port) {
+        alert("Broker / Port 不可空白");
+        return;
+      }
+
+      client = new Paho.MQTT.Client(broker, port, clientID);
+
+      client.onConnectionLost = function () {
+        setConnUI(false, `[${nowStr()}] 連線中斷`);
+      };
+
+      client.connect({
+        useSSL: true,
+        onSuccess: function(){
+          setConnUI(true, `[${nowStr()}] MQTT 已連線 (${broker}:${port})`);
+        },
+        onFailure: function(){
+          setConnUI(false, `[${nowStr()}] MQTT 連線失敗，請重整或檢查設定`);
+        }
+      });
+    }
+
+    function disconnectMQTT(){
+      try {
+        if (client && connected) client.disconnect();
+      } catch(e){}
+      setConnUI(false, `[${nowStr()}] 已手動斷線`);
+      stopStress();
+    }
+
+    function sendToTopic(topic, payloadObj){
+      if (!connected || !client) {
+        alert("尚未連上 MQTT！");
+        return false;
+      }
+      const payload = JSON.stringify(payloadObj);
+      const m = new Paho.MQTT.Message(payload);
+      m.destinationName = topic;
+      client.send(m);
+      return true;
+    }
+
+    /* ---------------- 假資料池（壓力測試） ---------------- */
     const TEST_OFFICES = ["北一","北二","中一","中二","南一","南二","東一"];
     const TEST_NAMES   = ["王小明","李小華","高婷婷","陳凱翔","周育誠","林家豪","何美靜"];
     const TEST_MSGS    = [
@@ -107,47 +301,94 @@
       return arr[Math.floor(Math.random() * arr.length)];
     }
 
-    function sendFake() {
-      const payload = JSON.stringify({
+    function buildWishPayload(){
+      return {
         office: pick(TEST_OFFICES),
         name: pick(TEST_NAMES),
-        msg: pick(TEST_MSGS)
-      });
-      const m = new Paho.MQTT.Message(payload);
-      m.destinationName = topic;
-      client.send(m);
+        msg: pick(TEST_MSGS),
+        type: "wish",
+        role: "participant"
+      };
     }
 
-    /* ---------------- 入口函數：連噴訊息 ---------------- */
-    function startStress() {
-      if (!connected) {
-        alert("尚未連上 MQTT！");
-        return;
-      }
+    let stressTimer = null;
 
-      const count = parseInt(document.getElementById("countInput").value);
-      if (!count || count <= 0) {
-        alert("請輸入有效的數字");
-        return;
-      }
+    function startStress(){
+      const topic = document.getElementById("topicInput").value.trim();
+      const count = parseInt(document.getElementById("countInput").value, 10);
+      const interval = parseInt(document.getElementById("intervalInput").value, 10) || 150;
 
-      document.getElementById("statusBox").innerText =
-        `開始送出 ${count} 筆訊息…`;
+      if (!connected) { alert("尚未連上 MQTT！"); return; }
+      if (!topic) { alert("主 Topic 不可空白"); return; }
+      if (!count || count <= 0) { alert("請輸入有效的筆數"); return; }
+
+      const box = document.getElementById("stressStatus");
+      box.innerText = `[${nowStr()}] 開始送出 ${count} 筆訊息…（間隔 ${interval}ms）`;
+      document.getElementById("stopStressBtn").disabled = false;
 
       let sent = 0;
-      const timer = setInterval(() => {
-        sendFake();
-        sent++;
+      clearInterval(stressTimer);
 
-        document.getElementById("statusBox").innerText =
-          `已送出 ${sent} / ${count}`;
+      stressTimer = setInterval(() => {
+        const ok = sendToTopic(topic, buildWishPayload());
+        if (!ok) { stopStress(); return; }
+
+        sent++;
+        box.innerText = `[${nowStr()}] 已送出 ${sent} / ${count}`;
 
         if (sent >= count) {
-          clearInterval(timer);
-          document.getElementById("statusBox").innerText =
-            `完成：共送出 ${count} 筆訊息`;
+          stopStress(true);
+          box.innerText = `[${nowStr()}] 完成：共送出 ${count} 筆訊息`;
         }
-      }, 150);
+      }, interval);
+    }
+
+    function stopStress(silent){
+      clearInterval(stressTimer);
+      stressTimer = null;
+      document.getElementById("stopStressBtn").disabled = true;
+      if (!silent) {
+        document.getElementById("stressStatus").innerText = `[${nowStr()}] 已停止`;
+      }
+    }
+
+    /* ---------------- VIP 控制（送到 control topic） ---------------- */
+    function sendControl(action){
+      const controlTopic = document.getElementById("controlTopicInput").value.trim();
+      if (!controlTopic) { alert("控制 Topic 不可空白"); return; }
+
+      const ok = sendToTopic(controlTopic, { action });
+      if (!ok) return;
+
+      document.getElementById("vipStatus").innerText =
+        `[${nowStr()}] 已送出控制指令：${action}\n→ ${controlTopic}`;
+    }
+
+    /* ---------------- Summary 測試注入（送到主 topic） ---------------- */
+    function sendSummary(){
+      const topic = document.getElementById("topicInput").value.trim();
+      const role = document.getElementById("summaryRole").value;
+      const name = document.getElementById("summaryName").value.trim() || "管理階層";
+      const msg = document.getElementById("summaryMsg").value.trim();
+
+      if (!topic) { alert("主 Topic 不可空白"); return; }
+      if (!msg) { alert("內容不可空白"); return; }
+
+      // 你的 Output 端 summary 判斷：type === "summary" + role=gm/chairman
+      const payload = {
+        type: "summary",
+        role,
+        office: "",
+        name: "",
+        displayName: name,
+        msg
+      };
+
+      const ok = sendToTopic(topic, payload);
+      if (!ok) return;
+
+      document.getElementById("summaryStatus").innerText =
+        `[${nowStr()}] 已送出 Summary：role=${role}\n→ ${topic}`;
     }
   </script>
 </body>

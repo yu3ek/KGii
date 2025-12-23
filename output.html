@@ -369,7 +369,8 @@
     }
     .vip-left { left: 1.5vw; }
     .vip-right { right: 1.5vw; }
-    .couplet {
+                                    /* 卷軸展開：由上往下 */
+    .couplet{
       writing-mode: vertical-rl;
       text-orientation: upright;
       font-size: 3rem;
@@ -383,12 +384,48 @@
       white-space: pre;
       box-shadow: 0 0 25px rgba(255, 200, 0, 0.8);
       pointer-events: auto;
-      animation: vipFade 0.5s ease-out;
+    
+      /* ✅ 關鍵：卷軸展開動畫 */
+      transform-origin: top;
+      transform: scaleY(0);
+      opacity: 1;
+      animation: scrollUnroll 0.75s cubic-bezier(0.2, 0.9, 0.25, 1) forwards;
+      overflow: hidden; /* 避免內容先露出 */
     }
-    @keyframes vipFade {
-      from { opacity: 0; transform: translateY(30px) scale(0.95); }
-      to { opacity: 1; transform: translateY(0) scale(1); }
+    
+    /* 可選：做出「卷軸頂端橫杆」的感覺 */
+    .couplet{ position: relative; }
+    .couplet::before{
+      content:"";
+      position:absolute;
+      top:-10px;
+      left:-6px;
+      right:-6px;
+      height:14px;
+      border-radius: 10px;
+      background: linear-gradient(90deg, #ffd700, #fff1a6, #ffd700);
+      box-shadow: 0 0 12px rgba(255,215,0,0.55);
     }
+    
+    /* 可選：做出「卷軸底端橫杆」 */
+    .couplet::after{
+      content:"";
+      position:absolute;
+      bottom:-10px;
+      left:-6px;
+      right:-6px;
+      height:14px;
+      border-radius: 10px;
+      background: linear-gradient(90deg, #ffd700, #fff1a6, #ffd700);
+      box-shadow: 0 0 12px rgba(255,215,0,0.55);
+    }
+    
+    @keyframes scrollUnroll{
+      0%   { transform: scaleY(0); }
+      60%  { transform: scaleY(1.02); } /* 微過衝更像展開 */
+      100% { transform: scaleY(1); }
+    }
+
 
     /* ✅ 春聯內「稱呼」與「內容」字級分離 */
     .couplet-name {

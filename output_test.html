@@ -4,7 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>聚勢成ONE 共創凱壽</title>
+
+  <!-- MQTT -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+  <!-- ✅ QRCode（前端即時產生） -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
   <style>
     :root {
@@ -252,6 +256,7 @@
       flex-direction: column;
       z-index: 50;
       backdrop-filter: blur(20px);
+      position: relative; /* ✅ 讓 QR 可以絕對定位在留言區內 */
     }
 
     .sidebar-header {
@@ -276,6 +281,7 @@
       overflow-y: auto;
       padding: 20px;
       scroll-behavior: smooth;
+      padding-bottom: 220px; /* ✅ 留出 QR 空間，避免卡片被遮住 */
     }
 
     .msg-card {
@@ -422,6 +428,34 @@
       opacity: 0.6;
       cursor: not-allowed;
     }
+
+    /* ---------------- ✅ QR Code（留言區右下角） ---------------- */
+    .qr-box{
+      position: absolute;
+      right: 14px;
+      bottom: 14px;
+      z-index: 120;
+      padding: 12px;
+      background: rgba(0,0,0,0.6);
+      border: 2px solid rgba(255,215,0,0.85);
+      border-radius: 12px;
+      box-shadow: 0 0 18px rgba(255,215,0,0.35);
+      text-align: center;
+      user-select: none;
+    }
+    .qr-box canvas,
+    /* qr code大小*/
+    .qr-box img{
+      width: 250px;
+      height: 250px;
+      display: block;
+    }
+    .qr-hint{
+      margin-top: 8px;
+      font-size: 0.9rem;
+      color: gold;
+      letter-spacing: 1px;
+    }
   </style>
 </head>
 
@@ -447,7 +481,14 @@
     <div class="sidebar-header" onclick="manualDownloadBackup()">
       <h2 title="連續點擊三次可強制備份下載">⚡ 即時能量祝願 ⚡</h2>
     </div>
+
     <div class="message-list" id="messageList"></div>
+
+    <!-- ✅ QR Code 區塊（留言區右下角） -->
+    <div id="qrBox" class="qr-box">
+      <div id="qrCode"></div>
+      <div class="qr-hint">掃描加入祝福</div>
+    </div>
   </div>
 </div>
 
@@ -472,6 +513,30 @@ function createWarpStars() {
   }
 }
 createWarpStars();
+
+/* ------------------------------------------------------------------ */
+/* ✅ QR Code 初始化 */
+/* ------------------------------------------------------------------ */
+const QR_TARGET_URL = "https://yu3ek.github.io/KGii/input";
+
+function initQRCode(){
+  const qrTarget = document.getElementById("qrCode");
+  if (!qrTarget) return;
+
+  // 避免重複生成（若你之後想動態更新用得到）
+  qrTarget.innerHTML = "";
+
+  new QRCode(qrTarget, {
+    text: QR_TARGET_URL,
+    /*qrcode大小*/
+    width: 250,
+    height: 250,
+    colorDark: "#000000",
+    colorLight: "#ffffff",
+    correctLevel: QRCode.CorrectLevel.H
+  });
+}
+initQRCode();
 
 /* ------------------------------------------------------------------ */
 /* 2. Building */
@@ -764,12 +829,12 @@ function dimBuilding() {
   });
 }
 
-/* ✅ 新增：把大樓燈調回來（取消 dim） */
+/* ✅ 把大樓燈調回來（取消 dim） */
 function undimBuilding() {
   pieces.forEach(p => p.classList.remove('dimmed'));
 }
 
-/* ✅ 新增：重置 VIP 流程（可配合控制台重來一次） */
+/* ✅ 重置 VIP 流程（可配合控制台重來一次） */
 function resetVip() {
   vipStep = 0;
   if (vipBtn) {
@@ -818,7 +883,6 @@ function vipNextStep() {
 /* ------------------------------------------------------------------ */
 /* 5. Summary handling (Chairman / GM spring couplets + stars) */
 /* ------------------------------------------------------------------ */
-
 function showVipCouplet(role, displayName, msgText) {
   const leftCol  = document.getElementById('vipLeft');
   const rightCol = document.getElementById('vipRight');
@@ -915,7 +979,7 @@ const port = 8084;
 
 // ✅ 原本主 topic
 const topic = "kgi_event_2025_live_demo_vtaco";
-// ✅ 新增：控制台用 topic（建議控制台 publish 到這裡）
+// ✅ 控制台用 topic（控制台 publish 到這裡）
 const controlTopic = topic + "_control";
 
 const clientID = "monitor_" + new Date().getTime();
@@ -926,7 +990,6 @@ client.onConnectionLost = function () {
 };
 
 client.onMessageArrived = function (msg) {
-  // ✅ 可觀測性：你按控制台後，這裡一定要看到 log
   console.log("[MQTT ARRIVED] topic=", msg.destinationName, "payload=", msg.payloadString);
 
   let data;
@@ -937,7 +1000,6 @@ client.onMessageArrived = function (msg) {
     return;
   }
 
-  // ✅ 控制訊息判斷：來自 controlTopic 或 type=vip_control 都算
   const isControlTopic = (msg.destinationName === controlTopic);
   const type = String(data.type || "").trim();
   const action = String(data.action || data.cmd || "").trim();
@@ -949,7 +1011,6 @@ client.onMessageArrived = function (msg) {
       case "dim_building":
         suspendMarquee();
         dimBuilding();
-        // 同步 vipStep（避免控制台按了，按鈕還停在①）
         if (vipStep === 0) {
           vipStep = 1;
           if (vipBtn && !vipBtn.disabled) vipBtn.innerText = '② 總經理星星＋春聯';
@@ -983,7 +1044,6 @@ client.onMessageArrived = function (msg) {
         resetVip();
         break;
 
-      // ✅ 讓控制台也能直接推進「同一顆按鈕的下一步」
       case "next_step":
         vipNextStep();
         break;

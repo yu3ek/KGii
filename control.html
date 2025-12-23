@@ -13,6 +13,7 @@
       --gold: #ffd700;
       --blue: #00bfff;
       --danger: #ff7676;
+      --ok: #7dffb2;
     }
 
     body {
@@ -37,6 +38,7 @@
       color: #ccc;
       margin-bottom: 24px;
       font-size: 0.9rem;
+      line-height: 1.5;
     }
 
     .panel {
@@ -65,12 +67,10 @@
       font-size: 1.05rem;
       font-weight: bold;
       cursor: pointer;
-      transition: transform 0.1s, box-shadow 0.1s;
+      transition: transform 0.1s, box-shadow 0.1s, opacity 0.1s;
     }
 
-    .btn:active {
-      transform: scale(0.97);
-    }
+    .btn:active { transform: scale(0.97); }
 
     .btn-dim {
       background: linear-gradient(90deg, #666, #333);
@@ -87,6 +87,12 @@
       background: linear-gradient(90deg, var(--gold), #a88600);
       color: #000;
       box-shadow: 0 0 20px rgba(255,215,0,0.6);
+    }
+
+    .btn-undim {
+      background: linear-gradient(90deg, var(--ok), #1f6b3f);
+      color: #000;
+      box-shadow: 0 0 20px rgba(125,255,178,0.35);
     }
 
     .btn-danger {
@@ -108,7 +114,7 @@
 <h1>VIP 導控台</h1>
 <div class="subtitle">
   此頁面僅供主持 / 技術人員操作<br/>
-  控制大螢幕 VIP 展演流程
+  控制大螢幕 VIP 展演流程（建議依序 ①→②→③→④）
 </div>
 
 <div class="panel">
@@ -124,6 +130,10 @@
 
   <button class="btn btn-chairman" onclick="sendAction('play_chairman')">
     ③ 播放董事長星星與春聯
+  </button>
+
+  <button class="btn btn-undim" onclick="sendAction('undim_building')">
+    ④ 大樓恢復亮度
   </button>
 
   <button class="btn btn-danger" onclick="sendAction('reset_vip')">

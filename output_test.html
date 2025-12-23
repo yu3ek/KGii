@@ -204,7 +204,8 @@
       to { filter: brightness(1.2) contrast(1.1); }
     }
 
-/*新增額外效果*/e::after {
+    /* ✅ 修正：原本是 e::after（無效 selector），改成 .piece::after（只加特效不改其他） */
+    .piece::after {
       content: "";
       position: absolute;
       width: 140%;
@@ -220,13 +221,20 @@
       opacity: 0;
       transform: rotate(0deg);
       animation: borderSweep 4s linear infinite;
+      pointer-events: none;
     }
 
-@keyframes borderSweep {
-  0%   { opacity: 0; transform: rotate(0deg); }
-  40%  { opacity: .3; }
-  100% { opacity: 0; transform: rotate(360deg); }
-}
+    @keyframes borderSweep {
+      0%   { opacity: 0; transform: rotate(0deg); }
+      40%  { opacity: .3; }
+      100% { opacity: 0; transform: rotate(360deg); }
+    }
+
+    /* ✅ 新增：大樓暗化效果（只調整明暗度，不變黑） */
+    .piece.dimmed {
+      filter: brightness(0.5) saturate(0.9);
+      opacity: 0.92;
+    }
     
     .spacer {
       width: var(--grid-size);
@@ -395,6 +403,17 @@
       to { opacity: 1; transform: translateY(0) scale(1); }
     }
 
+    /* ✅ 新增：春聯內「稱呼」與「內容」字級分離 */
+    .couplet-name {
+      font-size: 4.5rem;
+      display: block;
+      margin-bottom: 10px;
+    }
+    .couplet-text {
+      font-size: 3rem;
+      display: block;
+    }
+
     .msg-card.vip-summary {
       border-left-color: gold;
       box-shadow: 0 0 25px rgba(255, 215, 0, 0.9);
@@ -469,9 +488,12 @@ let filledCount = 0;
 const building = document.getElementById('building');
 const pieces = [];
 
-let buildingFilledTime = null;         // 大樓全亮的時間戳
-const pendingSummaryMessages = [];     // 還沒播放的董事長／總經理訊息
-const SUMMARY_DELAY_MS = 5000;        // 全亮後延遲 30秒
+let buildingFilledTime = null;         // 大樓全亮的時間戳（保留）
+const pendingSummaryMessages = [];     // 保留你的結構（不動）
+
+// ✅ VIP 控制（由 Control 台下指令）
+let gmSummary = null;
+let chairmanSummary = null;
 
 function initBuilding() {
   building.innerHTML = '';
@@ -488,7 +510,6 @@ function initBuilding() {
       const colorClass = determineLogoColor(colIndex, rowIndex);
       div.dataset.colorClass = colorClass;
 
-      // 記下每一格的 row / col，之後用來決定點亮順序
       div.dataset.row = rowIndex;
       div.dataset.col = colIndex;
 
@@ -575,11 +596,11 @@ function determineLogoColor(col, row) {
 /* 從左下往右、再往上依序點亮 */
 function getRandomEmptyIndex() {
   let bestIndex = -1;
-  let bestRow = -1;        // row 越大越下面
-  let bestCol = Infinity;  // 同一 row 下 col 越小越左邊
+  let bestRow = -1;
+  let bestCol = Infinity;
 
   pieces.forEach((p, index) => {
-    if (p.classList.contains('active')) return;  // 已經亮過的跳過
+    if (p.classList.contains('active')) return;
 
     const row = parseInt(p.dataset.row, 10);
     const col = parseInt(p.dataset.col, 10);
@@ -593,7 +614,6 @@ function getRandomEmptyIndex() {
 
   return bestIndex;
 }
-
 
 /* ------------------------------------------------------------------ */
 /* 3. Sidebar and CSV */
@@ -648,10 +668,8 @@ const marqueeLanes = [2, 18, 34, 50];
 const laneNextAvailable = [0, 0, 0, 0];
 const MARQUEE_DURATION_MS = 15000;
 
-/* ✅ 新增：跑馬燈是否啟用（預設 true） */
 let marqueeEnabled = true;
 
-/* ✅ 新增：停用跑馬燈並清空現有項目 */
 function suspendMarquee() {
   marqueeEnabled = false;
   const container = document.getElementById('marqueeArea');
@@ -659,8 +677,12 @@ function suspendMarquee() {
   container.querySelectorAll('.marquee-item').forEach(el => el.remove());
 }
 
+/* ✅ 新增：恢復跑馬燈（reset_vip 用） */
+function resumeMarquee() {
+  marqueeEnabled = true;
+}
+
 function showMarquee(text) {
-  /* ✅ 新增：若已停用跑馬燈，直接不顯示 */
   if (!marqueeEnabled) return;
 
   const container = document.getElementById('marqueeArea');
@@ -690,7 +712,6 @@ function showMarquee(text) {
   setTimeout(cleanup, MARQUEE_DURATION_MS + 800);
 }
 
-/* participants handling */
 function handleIncoming(displayName, msgText) {
   const now = new Date();
   const timeStr =
@@ -714,41 +735,36 @@ function handleIncoming(displayName, msgText) {
   targetPiece.classList.add('active');
   filledCount++;
 
-  // ★ 正確位置：每次點亮後檢查是否「第一次填滿」
   if (filledCount >= totalPieces && !buildingFilledTime) {
     buildingFilledTime = Date.now();
     console.log("Building is fully lit at", new Date(buildingFilledTime).toLocaleTimeString());
   }
 }
 
-
-/* 檢查是否已經「全亮滿 30 秒」，如果是就把排隊中的 summary 全部放出來 */
-function flushPendingSummariesIfReady() {
-  if (!buildingFilledTime) return;  // 大樓還沒全亮
-  const now = Date.now();
-
-  // 還沒到全亮 + 30 秒
-  if (now - buildingFilledTime < SUMMARY_DELAY_MS) return;
-
-  // 可以播放所有排隊中的 summary
-  while (pendingSummaryMessages.length > 0) {
-    const item = pendingSummaryMessages.shift();
-    handleSummaryMessage(item.role, item.displayName, item.msgText);
-  }
+/* ✅ 將大樓顏色調暗（不變黑，只調明暗度） */
+function dimBuilding() {
+  pieces.forEach(p => {
+    if (p.classList.contains('active')) {
+      p.classList.add('dimmed');
+    }
+  });
 }
-  
+
+/* ✅ 新增：將大樓恢復亮度（移除 dimmed） */
+function undimBuilding() {
+  pieces.forEach(p => p.classList.remove('dimmed'));
+}
+
 /* ------------------------------------------------------------------ */
 /* 5. Summary handling (Chairman / GM spring couplets + stars) */
 /* ------------------------------------------------------------------ */
 
-/** 星星飛完後，才在左右兩側顯示春聯 */
 function showVipCouplet(role, displayName, msgText) {
   const leftCol  = document.getElementById('vipLeft');
   const rightCol = document.getElementById('vipRight');
   const targetCol = (role === 'chairman') ? leftCol : rightCol;
   if (!targetCol) return;
 
-  // 根據角色決定稱呼
   let nameLabel = '';
   if (role === 'chairman') {
     nameLabel = '王董';
@@ -759,28 +775,21 @@ function showVipCouplet(role, displayName, msgText) {
   const couplet = document.createElement("div");
   couplet.classList.add("couplet");
 
-  // 建立稱呼區塊（字比較大）
   const nameSpan = document.createElement("span");
   nameSpan.classList.add("couplet-name");
   nameSpan.innerText = nameLabel + "：";
 
-  // 建立內容區塊（維持原始尺寸）
   const textSpan = document.createElement("span");
   textSpan.classList.add("couplet-text");
   textSpan.innerText = msgText;
 
-  // vertical 會自動換行
   couplet.appendChild(nameSpan);
   couplet.appendChild(textSpan);
 
-  // 每次清除再 append
   targetCol.innerHTML = '';
   targetCol.appendChild(couplet);
 }
 
-
-
-/** 建立星星，從畫面底部飛到標題下方，動畫結束後呼叫 showVipCouplet */
 function startVipStar(role, displayName, msgText) {
   const displayArea = document.getElementById('displayArea');
   if (!displayArea) return;
@@ -793,22 +802,18 @@ function startVipStar(role, displayName, msgText) {
   } else if (role === 'gm') {
     star.classList.add('vip-star-right');
   } else {
-    // 其他角色就先放中間
     star.style.left = '50%';
     star.style.transform = 'translateX(-50%)';
   }
 
   displayArea.appendChild(star);
 
-  // 星星動畫跑完後，再顯示春聯
   star.addEventListener('animationend', () => {
     showVipCouplet(role, displayName, msgText);
   }, { once: true });
 }
 
-/** 收到董事長 / 總經理的 summary 訊息入口 */
 function handleSummaryMessage(role, displayName, msgText) {
-  /* ✅ 一進入 VIP 段落就關掉跑馬燈 */
   suspendMarquee();
 
   const now = new Date();
@@ -822,14 +827,12 @@ function handleSummaryMessage(role, displayName, msgText) {
     role === 'gm'       ? '總經理' :
                           '管理階層';
 
-  // 紀錄到 history（CSV 用）
   blessingHistory.push({
     time: timeStr,
-    name: `{displayName}`,
+    name: `${displayName}`,
     msg: msgText
   });
 
-  // Sidebar 裡放一張特別樣式的卡片
   const list = document.getElementById('messageList');
   const card = document.createElement('div');
   card.classList.add('msg-card', 'vip-summary');
@@ -841,10 +844,27 @@ function handleSummaryMessage(role, displayName, msgText) {
      <div class="msg-content">${msgText}</div>`;
   list.insertBefore(card, list.firstChild);
 
-  // 啟動星星動畫（動畫結束後才會出現春聯）
   startVipStar(role, displayName, msgText);
 }
 
+/* ✅ 新增：VIP Reset（清春聯、移除星星、恢復亮度、恢復跑馬燈） */
+function resetVip() {
+  const leftCol  = document.getElementById('vipLeft');
+  const rightCol = document.getElementById('vipRight');
+  if (leftCol) leftCol.innerHTML = '';
+  if (rightCol) rightCol.innerHTML = '';
+
+  // 移除畫面上的星星
+  document.querySelectorAll('.vip-star').forEach(el => el.remove());
+
+  // 大樓恢復亮度
+  undimBuilding();
+
+  // 跑馬燈恢復
+  resumeMarquee();
+
+  console.log('VIP reset done.');
+}
 
 /* ------------------------------------------------------------------ */
 /* 6. MQTT */
@@ -864,11 +884,53 @@ client.onMessageArrived = function (msg) {
   try {
     const data = JSON.parse(msg.payloadString);
 
+    const type = (data.type || "wish").trim();
+
+    /* ✅ 新增：接控制台指令 */
+    if (type === "vip_control") {
+      const action = (data.action || "").trim();
+
+      switch (action) {
+        case "dim_building":
+          suspendMarquee();
+          dimBuilding();
+          break;
+
+        case "play_gm":
+          if (!gmSummary) {
+            console.warn("尚未收到總經理 summary（role=gm），無法播放 play_gm");
+            break;
+          }
+          handleSummaryMessage(gmSummary.role, gmSummary.displayName, gmSummary.msgText);
+          break;
+
+        case "play_chairman":
+          if (!chairmanSummary) {
+            console.warn("尚未收到董事長 summary（role=chairman），無法播放 play_chairman");
+            break;
+          }
+          handleSummaryMessage(chairmanSummary.role, chairmanSummary.displayName, chairmanSummary.msgText);
+          break;
+
+        case "undim_building":
+          undimBuilding();
+          break;
+
+        case "reset_vip":
+          resetVip();
+          break;
+
+        default:
+          console.warn("未知 vip_control action:", action);
+      }
+      return; // ✅ 控制訊息處理完就結束
+    }
+
+    /* ✅ 原本訊息流程（summary / wish） */
     const office = (data.office || "").trim();
     const name = (data.name || "").trim();
     const msgText = (data.msg || "").trim();
     const role = (data.role || "participant").trim();
-    const type = (data.type || "wish").trim();
 
     if (!msgText) return;
 
@@ -877,18 +939,14 @@ client.onMessageArrived = function (msg) {
       : (name || (data.displayName || "匿名"));
 
     if (type === "summary") {
-      // 先排隊，不馬上播
-      pendingSummaryMessages.push({
-        role,
-        displayName,
-        msgText,
-        receivedAt: Date.now()
-      });
-    
-      // 若大樓早就全亮 + 超過 30 秒了，可能立刻就會被 flush 出來
-      flushPendingSummariesIfReady();
+      const item = { role, displayName, msgText, receivedAt: Date.now() };
+
+      if (role === "gm") gmSummary = item;
+      if (role === "chairman") chairmanSummary = item;
+
+      pendingSummaryMessages.push(item);
+      // ✅ 不自動播，由 control 台決定何時播放
     } else {
-      // 一般願望：走原本流程（跑馬燈＋填格子）
       handleIncoming(displayName, msgText);
     }
 
@@ -909,9 +967,6 @@ function connectMQTT() {
 
 initBuilding();
 connectMQTT();
-
-/* 每秒檢查一次，看大樓是否已全亮滿 30 秒，若是就播放 summary */
-setInterval(flushPendingSummariesIfReady, 1000);
 </script>
 
 </body>

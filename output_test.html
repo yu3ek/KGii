@@ -141,31 +141,16 @@
     }
     
     /* 左星靠中間偏左、右星靠中間偏右 */
-    .vip-star-left {
-      left: 42%;
-    }
-    .vip-star-right {
-      left: 54%;
-    }
+    .vip-star-left { left: 42%; }
+    .vip-star-right { left: 54%; }
     
     /* 從畫面最下方飛上來，停在標題下方 */
     @keyframes vipStarFly {
-      0% {
-        top: 100vh;
-        opacity: 0;
-        transform: scale(0.6);
-      }
-      30% {
-        opacity: 1;
-      }
-      100% {
-        top: 8vh;   /* 星星停的位置：標題底下 */
-        opacity: 1;
-        transform: scale(1);
-      }
+      0% { top: 100vh; opacity: 0; transform: scale(0.6); }
+      30% { opacity: 1; }
+      100% { top: 8vh; opacity: 1; transform: scale(1); }
     }
 
-    
     .piece {
       width: var(--grid-size);
       height: var(--grid-size);
@@ -376,12 +361,8 @@
       pointer-events: none;
       z-index: 150;
     }
-    .vip-left {
-      left: 1.5vw;
-    }
-    .vip-right {
-      right: 1.5vw;
-    }
+    .vip-left { left: 1.5vw; }
+    .vip-right { right: 1.5vw; }
     .couplet {
       writing-mode: vertical-rl;
       text-orientation: upright;
@@ -403,7 +384,7 @@
       to { opacity: 1; transform: translateY(0) scale(1); }
     }
 
-    /* ✅ 新增：春聯內「稱呼」與「內容」字級分離 */
+    /* ✅ 春聯內「稱呼」與「內容」字級分離 */
     .couplet-name {
       font-size: 4.5rem;
       display: block;
@@ -420,6 +401,27 @@
       background: radial-gradient(circle at top left, rgba(255, 215, 0, 0.35), rgba(0, 0, 0, 0.9));
     }
 
+    /* ✅ VIP 手動流程按鈕 */
+    .vip-step-btn{
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      z-index: 999;
+      padding: 12px 18px;
+      border: 2px solid rgba(255,215,0,0.8);
+      border-radius: 999px;
+      background: rgba(0,0,0,0.55);
+      color: gold;
+      font-weight: 900;
+      letter-spacing: 1px;
+      cursor: pointer;
+      box-shadow: 0 0 18px rgba(255,215,0,0.35);
+    }
+    .vip-step-btn:active{ transform: scale(0.98); }
+    .vip-step-btn:disabled{
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
   </style>
 </head>
 
@@ -448,6 +450,11 @@
     <div class="message-list" id="messageList"></div>
   </div>
 </div>
+
+<!-- ✅ VIP 手動流程按鈕（全亮後才會顯示） -->
+<button id="vipStepBtn" class="vip-step-btn" onclick="vipNextStep()" style="display:none;">
+  ① 變暗
+</button>
 
 <script>
 /* ------------------------------------------------------------------ */
@@ -488,12 +495,16 @@ let filledCount = 0;
 const building = document.getElementById('building');
 const pieces = [];
 
-let buildingFilledTime = null;         // 大樓全亮的時間戳（保留）
-const pendingSummaryMessages = [];     // 保留你的結構（不動）
+let buildingFilledTime = null;         // 大樓全亮的時間戳
+const pendingSummaryMessages = [];     // 還沒播放的董事長／總經理訊息（保留，不動）
+const SUMMARY_DELAY_MS = 5000;        // 保留，不用自動播放
 
-// ✅ VIP 控制（由 Control 台下指令）
+// ✅ VIP 手動流程控制
+let vipStep = 0;               // 0=未開始 1=已暗化 2=已出GM 3=已出Chairman
+let vipButtonShown = false;
 let gmSummary = null;
 let chairmanSummary = null;
+const vipBtn = document.getElementById('vipStepBtn');
 
 function initBuilding() {
   building.innerHTML = '';
@@ -509,7 +520,6 @@ function initBuilding() {
       const div = document.createElement('div');
       const colorClass = determineLogoColor(colIndex, rowIndex);
       div.dataset.colorClass = colorClass;
-
       div.dataset.row = rowIndex;
       div.dataset.col = colIndex;
 
@@ -601,7 +611,6 @@ function getRandomEmptyIndex() {
 
   pieces.forEach((p, index) => {
     if (p.classList.contains('active')) return;
-
     const row = parseInt(p.dataset.row, 10);
     const col = parseInt(p.dataset.col, 10);
 
@@ -668,18 +677,15 @@ const marqueeLanes = [2, 18, 34, 50];
 const laneNextAvailable = [0, 0, 0, 0];
 const MARQUEE_DURATION_MS = 15000;
 
+/* ✅ 跑馬燈是否啟用（預設 true） */
 let marqueeEnabled = true;
 
+/* ✅ 停用跑馬燈並清空現有項目 */
 function suspendMarquee() {
   marqueeEnabled = false;
   const container = document.getElementById('marqueeArea');
   if (!container) return;
   container.querySelectorAll('.marquee-item').forEach(el => el.remove());
-}
-
-/* ✅ 新增：恢復跑馬燈（reset_vip 用） */
-function resumeMarquee() {
-  marqueeEnabled = true;
 }
 
 function showMarquee(text) {
@@ -712,6 +718,7 @@ function showMarquee(text) {
   setTimeout(cleanup, MARQUEE_DURATION_MS + 800);
 }
 
+/* participants handling */
 function handleIncoming(displayName, msgText) {
   const now = new Date();
   const timeStr =
@@ -738,6 +745,13 @@ function handleIncoming(displayName, msgText) {
   if (filledCount >= totalPieces && !buildingFilledTime) {
     buildingFilledTime = Date.now();
     console.log("Building is fully lit at", new Date(buildingFilledTime).toLocaleTimeString());
+
+    // ✅ 全亮後顯示 VIP 按鈕（只顯示一次）
+    if (!vipButtonShown) {
+      vipBtn.style.display = 'block';
+      vipBtn.innerText = '① 變暗';
+      vipButtonShown = true;
+    }
   }
 }
 
@@ -750,9 +764,55 @@ function dimBuilding() {
   });
 }
 
-/* ✅ 新增：將大樓恢復亮度（移除 dimmed） */
+/* ✅ 新增：把大樓燈調回來（取消 dim） */
 function undimBuilding() {
   pieces.forEach(p => p.classList.remove('dimmed'));
+}
+
+/* ✅ 新增：重置 VIP 流程（可配合控制台重來一次） */
+function resetVip() {
+  vipStep = 0;
+  if (vipBtn) {
+    vipBtn.disabled = false;
+    vipBtn.innerText = '① 變暗';
+    if (buildingFilledTime) vipBtn.style.display = 'block';
+  }
+}
+
+/* ✅ VIP 手動三段流程（按一下做一步） */
+function vipNextStep() {
+  if (!buildingFilledTime) return;
+
+  if (vipStep === 0) {
+    suspendMarquee();
+    dimBuilding();
+    vipStep = 1;
+    vipBtn.innerText = '② 總經理星星＋春聯';
+    return;
+  }
+
+  if (vipStep === 1) {
+    if (!gmSummary) {
+      alert('尚未收到總經理訊息（role=gm）。');
+      return;
+    }
+    handleSummaryMessage(gmSummary.role, gmSummary.displayName, gmSummary.msgText);
+    vipStep = 2;
+    vipBtn.innerText = '③ 董事長星星＋春聯';
+    return;
+  }
+
+  if (vipStep === 2) {
+    if (!chairmanSummary) {
+      alert('尚未收到董事長訊息（role=chairman）。');
+      return;
+    }
+    handleSummaryMessage(chairmanSummary.role, chairmanSummary.displayName, chairmanSummary.msgText);
+    vipStep = 3;
+    vipBtn.innerText = '完成';
+    vipBtn.disabled = true;
+    return;
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -847,31 +907,16 @@ function handleSummaryMessage(role, displayName, msgText) {
   startVipStar(role, displayName, msgText);
 }
 
-/* ✅ 新增：VIP Reset（清春聯、移除星星、恢復亮度、恢復跑馬燈） */
-function resetVip() {
-  const leftCol  = document.getElementById('vipLeft');
-  const rightCol = document.getElementById('vipRight');
-  if (leftCol) leftCol.innerHTML = '';
-  if (rightCol) rightCol.innerHTML = '';
-
-  // 移除畫面上的星星
-  document.querySelectorAll('.vip-star').forEach(el => el.remove());
-
-  // 大樓恢復亮度
-  undimBuilding();
-
-  // 跑馬燈恢復
-  resumeMarquee();
-
-  console.log('VIP reset done.');
-}
-
 /* ------------------------------------------------------------------ */
 /* 6. MQTT */
 /* ------------------------------------------------------------------ */
 const broker = "broker.emqx.io";
 const port = 8084;
+
+// ✅ 原本主 topic
 const topic = "kgi_event_2025_live_demo_vtaco";
+// ✅ 新增：控制台用 topic（建議控制台 publish 到這裡）
+const controlTopic = topic + "_control";
 
 const clientID = "monitor_" + new Date().getTime();
 const client = new Paho.MQTT.Client(broker, port, clientID);
@@ -881,56 +926,81 @@ client.onConnectionLost = function () {
 };
 
 client.onMessageArrived = function (msg) {
+  // ✅ 可觀測性：你按控制台後，這裡一定要看到 log
+  console.log("[MQTT ARRIVED] topic=", msg.destinationName, "payload=", msg.payloadString);
+
+  let data;
   try {
-    const data = JSON.parse(msg.payloadString);
+    data = JSON.parse(msg.payloadString);
+  } catch (e) {
+    console.error("訊息解析失敗(JSON)", e);
+    return;
+  }
 
-    const type = (data.type || "wish").trim();
+  // ✅ 控制訊息判斷：來自 controlTopic 或 type=vip_control 都算
+  const isControlTopic = (msg.destinationName === controlTopic);
+  const type = String(data.type || "").trim();
+  const action = String(data.action || data.cmd || "").trim();
 
-    /* ✅ 新增：接控制台指令 */
-    if (type === "vip_control") {
-      const action = (data.action || "").trim();
+  if (isControlTopic || type === "vip_control") {
+    console.log("[VIP CONTROL] action=", action);
 
-      switch (action) {
-        case "dim_building":
-          suspendMarquee();
-          dimBuilding();
-          break;
+    switch (action) {
+      case "dim_building":
+        suspendMarquee();
+        dimBuilding();
+        // 同步 vipStep（避免控制台按了，按鈕還停在①）
+        if (vipStep === 0) {
+          vipStep = 1;
+          if (vipBtn && !vipBtn.disabled) vipBtn.innerText = '② 總經理星星＋春聯';
+        }
+        break;
 
-        case "play_gm":
-          if (!gmSummary) {
-            console.warn("尚未收到總經理 summary（role=gm），無法播放 play_gm");
-            break;
-          }
-          handleSummaryMessage(gmSummary.role, gmSummary.displayName, gmSummary.msgText);
-          break;
+      case "play_gm":
+        if (!gmSummary) { alert('尚未收到總經理訊息（role=gm）。'); break; }
+        handleSummaryMessage(gmSummary.role, gmSummary.displayName, gmSummary.msgText);
+        if (vipStep < 2) {
+          vipStep = 2;
+          if (vipBtn && !vipBtn.disabled) vipBtn.innerText = '③ 董事長星星＋春聯';
+        }
+        break;
 
-        case "play_chairman":
-          if (!chairmanSummary) {
-            console.warn("尚未收到董事長 summary（role=chairman），無法播放 play_chairman");
-            break;
-          }
-          handleSummaryMessage(chairmanSummary.role, chairmanSummary.displayName, chairmanSummary.msgText);
-          break;
+      case "play_chairman":
+        if (!chairmanSummary) { alert('尚未收到董事長訊息（role=chairman）。'); break; }
+        handleSummaryMessage(chairmanSummary.role, chairmanSummary.displayName, chairmanSummary.msgText);
+        vipStep = 3;
+        if (vipBtn) {
+          vipBtn.innerText = '完成';
+          vipBtn.disabled = true;
+        }
+        break;
 
-        case "undim_building":
-          undimBuilding();
-          break;
+      case "undim_building":
+        undimBuilding();
+        break;
 
-        case "reset_vip":
-          resetVip();
-          break;
+      case "reset_vip":
+        resetVip();
+        break;
 
-        default:
-          console.warn("未知 vip_control action:", action);
-      }
-      return; // ✅ 控制訊息處理完就結束
+      // ✅ 讓控制台也能直接推進「同一顆按鈕的下一步」
+      case "next_step":
+        vipNextStep();
+        break;
+
+      default:
+        console.warn("Unknown control action:", action);
     }
+    return;
+  }
 
-    /* ✅ 原本訊息流程（summary / wish） */
+  // --- 你原本 wish/summary 邏輯維持 ---
+  try {
     const office = (data.office || "").trim();
     const name = (data.name || "").trim();
     const msgText = (data.msg || "").trim();
     const role = (data.role || "participant").trim();
+    const msgType = (data.type || "wish").trim();
 
     if (!msgText) return;
 
@@ -938,20 +1008,23 @@ client.onMessageArrived = function (msg) {
       ? `${office} / ${name}`
       : (name || (data.displayName || "匿名"));
 
-    if (type === "summary") {
+    if (msgType === "summary") {
       const item = { role, displayName, msgText, receivedAt: Date.now() };
 
       if (role === "gm") gmSummary = item;
       if (role === "chairman") chairmanSummary = item;
 
       pendingSummaryMessages.push(item);
-      // ✅ 不自動播，由 control 台決定何時播放
+
+      // ✅ 如果大樓已全亮，確保按鈕可見（但不自動播放）
+      if (buildingFilledTime && vipButtonShown) {
+        vipBtn.style.display = 'block';
+      }
     } else {
       handleIncoming(displayName, msgText);
     }
-
   } catch (e) {
-    console.error("訊息解析失敗", e);
+    console.error("訊息處理失敗", e);
   }
 };
 
@@ -960,6 +1033,8 @@ function connectMQTT() {
     useSSL: true,
     onSuccess: function () {
       client.subscribe(topic);
+      client.subscribe(controlTopic);
+      console.log("[MQTT] subscribed:", topic, controlTopic);
     },
     onFailure: function () {}
   });

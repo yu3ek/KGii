@@ -1000,10 +1000,19 @@ function showVipCouplet(role, displayName, msgText) {
   couplet.appendChild(inner);
 
   // ✅ 統一：春聯在左、稱呼在右（董事長與總經理都一樣）
-  wrap.appendChild(couplet);
-  wrap.appendChild(label);
-
+  // ✅ 對稱版：總經理在左，董事長在右
   targetCol.innerHTML = '';
+  
+  if (role === 'gm') {
+    // 總經理（右欄）：【稱呼｜春聯】
+    wrap.appendChild(label);    // 左
+    wrap.appendChild(couplet);  // 右
+  } else {
+    // 董事長（左欄）：【春聯｜稱呼】
+    wrap.appendChild(couplet);  // 左
+    wrap.appendChild(label);    // 右
+  }
+  
   targetCol.appendChild(wrap);
 }
 

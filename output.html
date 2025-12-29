@@ -21,6 +21,15 @@
       --kgi-white: #ffffff;
 
       --grid-size: min(8.2vh, 8.2vw);
+
+      /* ✅ 春聯固定字數/格子設定 */
+      --couplet-cells: 17
+      ;                 /* ✅ 改成 20 字 */
+      --couplet-text-size: 3rem;           /* 內容字級 */
+      --couplet-name-size: 4rem;           /* 稱呼字級 */
+      --couplet-cell-gap: 0.25rem;         /* 格子間距 */
+      --couplet-unroll-duration: 5.5s;     /* ✅ 卷軸展開速度（越大越慢） */
+      --couplet-side-inset: 25vw;          /* ✅ 春聯往中間靠的距離（越小越靠中間） */
     }
     
     body {
@@ -88,7 +97,7 @@
       top: 2vh;
       width: 100%;
       text-align: center;
-      font-size: 5rem; /* 原本 3.5rem */
+      font-size: 5rem;
       font-weight: 900;
       letter-spacing: 18px;
       color: rgba(255, 215, 0, 0.95);
@@ -122,14 +131,12 @@
     /* ⭐ VIP 星星（五角星） */
     .vip-star {
       position: absolute;
-      width: 80px;        /* 星星大小 */
+      width: 80px;
       height: 80px;
       background: #ffd700;
-      box-shadow: 0 0 35px rgba(255, 215, 0, 1); /* 金色光暈 */
+      box-shadow: 0 0 35px rgba(255, 215, 0, 1);
       z-index: 160;
       animation: vipStarFly 1.2s ease-out forwards;
-    
-      /* 五角星形狀 */
       clip-path: polygon(
         50% 0%,
         61% 35%,
@@ -143,12 +150,8 @@
         39% 35%
       );
     }
-    
-    /* 左星靠中間偏左、右星靠中間偏右 */
     .vip-star-left { left: 42%; }
     .vip-star-right { left: 54%; }
-    
-    /* 從畫面最下方飛上來，停在標題下方 */
     @keyframes vipStarFly {
       0% { top: 100vh; opacity: 0; transform: scale(0.6); }
       30% { opacity: 1; }
@@ -167,33 +170,7 @@
         inset 0 0 10px rgba(0, 150, 255, 0.15);
       transition: transform 0.3s, box-shadow 0.3s, border-color 0.3s;
     }
-    .piece:nth-child(odd) { animation-delay: 0.2s; }
-    .piece:nth-child(3n) { animation-duration: 1.2s; }
 
-    @keyframes unstableEnergy {
-      0% { border-color: rgba(0, 150, 255, 0.2); }
-      100% {
-        border-color: rgba(0, 255, 255, 0.4);
-        box-shadow: inset 0 0 10px var(--kgi-blue);
-      }
-    }
-
-    .piece.active {
-      border-color: rgba(100, 255, 255, 1);
-      box-shadow:
-        0 0 18px rgba(0, 255, 255, 1),
-        0 0 30px rgba(0, 180, 255, 0.9),
-        inset 0 0 12px rgba(0, 255, 255, 0.5);
-      transform: scale(1.12) translateZ(8vh);
-      border-width: 2px;
-    }
-
-    @keyframes activePlasma {
-      from { filter: brightness(1); }
-      to { filter: brightness(1.2) contrast(1.1); }
-    }
-
-    /* ✅ 修正：原本是 e::after（無效 selector），改成 .piece::after（只加特效不改其他） */
     .piece::after {
       content: "";
       position: absolute;
@@ -212,19 +189,27 @@
       animation: borderSweep 4s linear infinite;
       pointer-events: none;
     }
-
     @keyframes borderSweep {
       0%   { opacity: 0; transform: rotate(0deg); }
       40%  { opacity: .3; }
       100% { opacity: 0; transform: rotate(360deg); }
     }
 
-    /* ✅ 新增：大樓暗化效果（只調整明暗度，不變黑） */
+    .piece.active {
+      border-color: rgba(100, 255, 255, 1);
+      box-shadow:
+        0 0 18px rgba(0, 255, 255, 1),
+        0 0 30px rgba(0, 180, 255, 0.9),
+        inset 0 0 12px rgba(0, 255, 255, 0.5);
+      transform: scale(1.12) translateZ(8vh);
+      border-width: 2px;
+    }
+
     .piece.dimmed {
       filter: brightness(0.5) saturate(0.9);
       opacity: 0.92;
     }
-    
+
     .spacer {
       width: var(--grid-size);
       height: var(--grid-size);
@@ -256,7 +241,7 @@
       flex-direction: column;
       z-index: 50;
       backdrop-filter: blur(20px);
-      position: relative; /* ✅ 讓 QR 可以絕對定位在留言區內 */
+      position: relative;
     }
 
     .sidebar-header {
@@ -281,7 +266,7 @@
       overflow-y: auto;
       padding: 20px;
       scroll-behavior: smooth;
-      padding-bottom: 220px; /* ✅ 留出 QR 空間，避免卡片被遮住 */
+      padding-bottom: 220px;
     }
 
     .msg-card {
@@ -295,6 +280,12 @@
       position: relative;
       overflow: hidden;
       animation: slideInRight 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .msg-card.vip-summary {
+      border-left-color: gold;
+      box-shadow: 0 0 25px rgba(255, 215, 0, 0.9);
+      background: radial-gradient(circle at top left, rgba(255, 215, 0, 0.35), rgba(0, 0, 0, 0.9));
     }
 
     .msg-card::before {
@@ -345,7 +336,7 @@
       border: 3px solid #ffffff;
       border-radius: 60px;
       box-shadow: 0 10px 50px rgba(0, 150, 255, 0.6);
-      animation: flyToTop 15s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+      animation: flyToTop 30s cubic-bezier(0.23, 1, 0.32, 1) forwards;
     }
     @keyframes flyToTop {
       0% { bottom: -150px; opacity: 0; transform: scale(0.5) rotate(-5deg); }
@@ -356,45 +347,59 @@
     }
 
     /* ---------------- 春聯 ---------------- */
+
     .vip-column {
       position: absolute;
       top: 15vh;
-      bottom: 8vh;
+      bottom: auto;
       width: 12%;
       display: flex;
-      align-items: center;
-      justify-content: center;
+      align-items: flex-start;
+      justify-content: flex-start;
       pointer-events: none;
       z-index: 150;
     }
-    .vip-left { left: 25vw; }
-    .vip-right { right: 25vw; }
-                                    /* 卷軸展開：由上往下 */
+
+    .vip-left { left: var(--couplet-side-inset); }
+    .vip-right { right: var(--couplet-side-inset); }
+
     .couplet{
-      writing-mode: vertical-rl;
-      text-orientation: upright;
-      font-size: 3rem;
-      line-height: 1.6;
       padding: 16px 12px;
       border: 3px solid gold;
       border-radius: 10px;
       color: gold;
       background: linear-gradient(180deg, #b20000, #5a0000);
       font-weight: 900;
-      white-space: pre;
       box-shadow: 0 0 25px rgba(255, 200, 0, 0.8);
       pointer-events: auto;
-    
-      /* ✅ 關鍵：卷軸展開動畫 */
+
+      position: relative;
+
       transform-origin: top;
       transform: scaleY(0);
       opacity: 1;
-      animation: scrollUnroll 4s cubic-bezier(0.2, 0.9, 0.25, 1) forwards;
-      overflow: hidden; /* 避免內容先露出 */
+      animation: scrollUnroll var(--couplet-unroll-duration) cubic-bezier(0.2, 0.9, 0.25, 1) forwards;
+      overflow: hidden;
+      box-sizing: border-box;
+
+      /* ✅ 置頂：讓內容永遠從上開始排（避免稱呼視覺置中） */
+      display: flex;
+      align-items: flex-start;
     }
-    
-    /* 可選：做出「卷軸頂端橫杆」的感覺 */
-    .couplet{ position: relative; }
+
+    .couplet-inner{
+      writing-mode: vertical-rl;
+      text-orientation: upright;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+
+      /* ✅ 置頂關鍵：撐滿高度 + 從上排 */
+      height: 100%;
+      justify-content: flex-start;
+      padding-top: 10px; /* 可自行調整：0~14px */
+    }
+
     .couplet::before{
       content:"";
       position:absolute;
@@ -406,8 +411,7 @@
       background: linear-gradient(90deg, #ffd700, #fff1a6, #ffd700);
       box-shadow: 0 0 12px rgba(255,215,0,0.55);
     }
-    
-    /* 可選：做出「卷軸底端橫杆」 */
+
     .couplet::after{
       content:"";
       position:absolute;
@@ -419,32 +423,38 @@
       background: linear-gradient(90deg, #ffd700, #fff1a6, #ffd700);
       box-shadow: 0 0 12px rgba(255,215,0,0.55);
     }
-    
+
     @keyframes scrollUnroll{
       0%   { transform: scaleY(0); }
-      60%  { transform: scaleY(1.02); } /* 微過衝更像展開 */
+      60%  { transform: scaleY(1.02); }
       100% { transform: scaleY(1); }
     }
 
-
-    /* ✅ 春聯內「稱呼」與「內容」字級分離 */
     .couplet-name {
-      font-size: 4rem;
+      font-size: var(--couplet-name-size);
       display: block;
       margin-bottom: 10px;
-    }
-    .couplet-text {
-      font-size: 3rem;
-      display: block;
+      line-height: 1;
     }
 
-    .msg-card.vip-summary {
-      border-left-color: gold;
-      box-shadow: 0 0 25px rgba(255, 215, 0, 0.9);
-      background: radial-gradient(circle at top left, rgba(255, 215, 0, 0.35), rgba(0, 0, 0, 0.9));
+    .couplet-cells{
+      font-size: var(--couplet-text-size);
+      display: flex;
+      flex-direction: row;
+      justify-content: space-between;
+      gap: var(--couplet-cell-gap);
+      align-items: center;
     }
 
-    /* ✅ VIP 手動流程按鈕 */
+    .couplet-cells .cell{
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+      white-space: pre;
+    }
+    .couplet-cells .cell.pad{ opacity: 0.35; }
+
     .vip-step-btn{
       position: fixed;
       right: 18px;
@@ -466,7 +476,6 @@
       cursor: not-allowed;
     }
 
-    /* ---------------- ✅ QR Code（留言區右下角） ---------------- */
     .qr-box{
       position: absolute;
       right: 14px;
@@ -481,7 +490,6 @@
       user-select: none;
     }
     .qr-box canvas,
-    /* qr code大小*/
     .qr-box img{
       width: 250px;
       height: 250px;
@@ -521,7 +529,6 @@
 
     <div class="message-list" id="messageList"></div>
 
-    <!-- ✅ QR Code 區塊（留言區右下角） -->
     <div id="qrBox" class="qr-box">
       <div id="qrCode"></div>
       <div class="qr-hint">掃描加入祝福</div>
@@ -529,7 +536,6 @@
   </div>
 </div>
 
-<!-- ✅ VIP 手動流程按鈕（全亮後才會顯示） -->
 <button id="vipStepBtn" class="vip-step-btn" onclick="vipNextStep()" style="display:none;">
   ① 變暗
 </button>
@@ -559,13 +565,9 @@ const QR_TARGET_URL = "https://yu3ek.github.io/KGii/input";
 function initQRCode(){
   const qrTarget = document.getElementById("qrCode");
   if (!qrTarget) return;
-
-  // 避免重複生成（若你之後想動態更新用得到）
   qrTarget.innerHTML = "";
-
   new QRCode(qrTarget, {
     text: QR_TARGET_URL,
-    /*qrcode大小*/
     width: 250,
     height: 250,
     colorDark: "#000000",
@@ -574,6 +576,53 @@ function initQRCode(){
   });
 }
 initQRCode();
+
+/* ------------------------------------------------------------------ */
+/* ✅ 春聯：固定 20 字格工具 + 強制固定高度 */
+/* ------------------------------------------------------------------ */
+const COUPLET_CELLS = 17;
+
+function toFixedCells(text, n = COUPLET_CELLS){
+  const chars = Array.from((text || "").trim());
+  const sliced = chars.slice(0, n);
+  while (sliced.length < n) sliced.push("　");
+  return sliced;
+}
+
+function renderCells(containerEl, chars){
+  containerEl.innerHTML = "";
+  chars.forEach(ch => {
+    const cell = document.createElement("span");
+    cell.className = "cell" + (ch === "　" ? " pad" : "");
+    cell.textContent = ch;
+    containerEl.appendChild(cell);
+  });
+}
+
+function getCssVarNumberPx(varName, fallbackPx) {
+  const v = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+  if (!v) return fallbackPx;
+  if (v.endsWith("px")) return parseFloat(v);
+  if (v.endsWith("rem")) {
+    const rootFont = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+    return parseFloat(v) * rootFont;
+  }
+  const n = parseFloat(v);
+  return Number.isFinite(n) ? n : fallbackPx;
+}
+
+// ✅ 關鍵：把「內容區」硬撐到固定 N 格高度（每格一個字）
+function applyCoupletFixedHeight(coupletEl, cellsEl, cellsCount) {
+  const fontPx = getCssVarNumberPx("--couplet-text-size", 48);
+  const gapPx  = getCssVarNumberPx("--couplet-cell-gap", 4);
+
+  const textAreaHeight = (cellsCount * fontPx) + ((cellsCount - 1) * gapPx);
+  cellsEl.style.height = `${textAreaHeight}px`;
+
+  const namePx = getCssVarNumberPx("--couplet-name-size", 64);
+  const extra = 16 + 16 + 10 + 14 + 14 + 18; // padding + margin + 卷軸杆緩衝
+  coupletEl.style.minHeight = `${namePx + textAreaHeight + extra}px`;
+}
 
 /* ------------------------------------------------------------------ */
 /* 2. Building */
@@ -597,12 +646,12 @@ let filledCount = 0;
 const building = document.getElementById('building');
 const pieces = [];
 
-let buildingFilledTime = null;         // 大樓全亮的時間戳
-const pendingSummaryMessages = [];     // 還沒播放的董事長／總經理訊息（保留，不動）
-const SUMMARY_DELAY_MS = 5000;        // 保留，不用自動播放
+let buildingFilledTime = null;
+const pendingSummaryMessages = [];
+const SUMMARY_DELAY_MS = 5000;
 
 // ✅ VIP 手動流程控制
-let vipStep = 0;               // 0=未開始 1=已暗化 2=已出GM 3=已出Chairman
+let vipStep = 0;
 let vipButtonShown = false;
 let gmSummary = null;
 let chairmanSummary = null;
@@ -638,7 +687,6 @@ function initBuilding() {
   });
 }
 
-/* Logo color remains untouched */
 function determineLogoColor(col, row) {
   if (col === 4) {
     if (row < 1) return 'c-blue';
@@ -705,7 +753,6 @@ function determineLogoColor(col, row) {
   return 'c-blue';
 }
 
-/* 從左下往右、再往上依序點亮 */
 function getRandomEmptyIndex() {
   let bestIndex = -1;
   let bestRow = -1;
@@ -724,6 +771,31 @@ function getRandomEmptyIndex() {
   });
 
   return bestIndex;
+}
+
+/* ✅ 新增：只點燈（不寫側欄、不跑馬燈、不寫入祝福紀錄） */
+function lightOnePieceOnly() {
+  if (filledCount >= totalPieces) return;
+
+  const targetIndex = getRandomEmptyIndex();
+  if (targetIndex === -1) return;
+
+  const targetPiece = pieces[targetIndex];
+  const colorClass = targetPiece.dataset.colorClass;
+
+  targetPiece.classList.add(colorClass);
+  targetPiece.classList.add('active');
+  filledCount++;
+
+  if (filledCount >= totalPieces && !buildingFilledTime) {
+    buildingFilledTime = Date.now();
+
+    if (!vipButtonShown) {
+      vipBtn.style.display = 'block';
+      vipBtn.innerText = '① 變暗';
+      vipButtonShown = true;
+    }
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -777,12 +849,9 @@ function manualDownloadBackup() {
 /* ------------------------------------------------------------------ */
 const marqueeLanes = [2, 18, 34, 50];
 const laneNextAvailable = [0, 0, 0, 0];
-const MARQUEE_DURATION_MS = 15000;
-
-/* ✅ 跑馬燈是否啟用（預設 true） */
+const MARQUEE_DURATION_MS = 30000;
 let marqueeEnabled = true;
 
-/* ✅ 停用跑馬燈並清空現有項目 */
 function suspendMarquee() {
   marqueeEnabled = false;
   const container = document.getElementById('marqueeArea');
@@ -846,9 +915,7 @@ function handleIncoming(displayName, msgText) {
 
   if (filledCount >= totalPieces && !buildingFilledTime) {
     buildingFilledTime = Date.now();
-    console.log("Building is fully lit at", new Date(buildingFilledTime).toLocaleTimeString());
 
-    // ✅ 全亮後顯示 VIP 按鈕（只顯示一次）
     if (!vipButtonShown) {
       vipBtn.style.display = 'block';
       vipBtn.innerText = '① 變暗';
@@ -857,21 +924,16 @@ function handleIncoming(displayName, msgText) {
   }
 }
 
-/* ✅ 將大樓顏色調暗（不變黑，只調明暗度） */
 function dimBuilding() {
   pieces.forEach(p => {
-    if (p.classList.contains('active')) {
-      p.classList.add('dimmed');
-    }
+    if (p.classList.contains('active')) p.classList.add('dimmed');
   });
 }
 
-/* ✅ 把大樓燈調回來（取消 dim） */
 function undimBuilding() {
   pieces.forEach(p => p.classList.remove('dimmed'));
 }
 
-/* ✅ 重置 VIP 流程（可配合控制台重來一次） */
 function resetVip() {
   vipStep = 0;
   if (vipBtn) {
@@ -881,7 +943,6 @@ function resetVip() {
   }
 }
 
-/* ✅ VIP 手動三段流程（按一下做一步） */
 function vipNextStep() {
   if (!buildingFilledTime) return;
 
@@ -894,10 +955,7 @@ function vipNextStep() {
   }
 
   if (vipStep === 1) {
-    if (!gmSummary) {
-      alert('尚未收到總經理訊息（role=gm）。');
-      return;
-    }
+    if (!gmSummary) { alert('尚未收到總經理訊息（role=gm）。'); return; }
     handleSummaryMessage(gmSummary.role, gmSummary.displayName, gmSummary.msgText);
     vipStep = 2;
     vipBtn.innerText = '③ 董事長星星＋春聯';
@@ -905,10 +963,7 @@ function vipNextStep() {
   }
 
   if (vipStep === 2) {
-    if (!chairmanSummary) {
-      alert('尚未收到董事長訊息（role=chairman）。');
-      return;
-    }
+    if (!chairmanSummary) { alert('尚未收到董事長訊息（role=chairman）。'); return; }
     handleSummaryMessage(chairmanSummary.role, chairmanSummary.displayName, chairmanSummary.msgText);
     vipStep = 3;
     vipBtn.innerText = '完成';
@@ -927,25 +982,32 @@ function showVipCouplet(role, displayName, msgText) {
   if (!targetCol) return;
 
   let nameLabel = '';
-  if (role === 'chairman') {
-    nameLabel = '董事長';
-  } else if (role === 'gm') {
-    nameLabel = '總經理';
-  }
+  if (role === 'chairman') nameLabel = '董事長';
+  else if (role === 'gm') nameLabel = '總經理';
 
   const couplet = document.createElement("div");
   couplet.classList.add("couplet");
+
+  const inner = document.createElement("div");
+  inner.classList.add("couplet-inner");
 
   const nameSpan = document.createElement("span");
   nameSpan.classList.add("couplet-name");
   nameSpan.innerText = nameLabel + "：";
 
-  const textSpan = document.createElement("span");
-  textSpan.classList.add("couplet-text");
-  textSpan.innerText = msgText;
+  const cellsWrap = document.createElement("div");
+  cellsWrap.classList.add("couplet-cells");
 
-  couplet.appendChild(nameSpan);
-  couplet.appendChild(textSpan);
+  // ✅ 固定 20 字格 + 不足補全形空白、超過截斷
+  const cells = toFixedCells(msgText, COUPLET_CELLS);
+  renderCells(cellsWrap, cells);
+
+  // ✅ 強制內容區高度：確保一定是 20 格、直式、不會被擠成幾個字
+  applyCoupletFixedHeight(couplet, cellsWrap, COUPLET_CELLS);
+
+  inner.appendChild(nameSpan);
+  inner.appendChild(cellsWrap);
+  couplet.appendChild(inner);
 
   targetCol.innerHTML = '';
   targetCol.appendChild(couplet);
@@ -958,14 +1020,9 @@ function startVipStar(role, displayName, msgText) {
   const star = document.createElement('div');
   star.classList.add('vip-star');
 
-  if (role === 'chairman') {
-    star.classList.add('vip-star-left');
-  } else if (role === 'gm') {
-    star.classList.add('vip-star-right');
-  } else {
-    star.style.left = '50%';
-    star.style.transform = 'translateX(-50%)';
-  }
+  if (role === 'chairman') star.classList.add('vip-star-left');
+  else if (role === 'gm') star.classList.add('vip-star-right');
+  else { star.style.left = '50%'; star.style.transform = 'translateX(-50%)'; }
 
   displayArea.appendChild(star);
 
@@ -979,8 +1036,8 @@ function handleSummaryMessage(role, displayName, msgText) {
 
   const now = new Date();
   const timeStr =
-    now.getHours().toString().padStart(2, '0') +
-    now.getMinutes().toString().padStart(2, '0')  +
+    now.getHours().toString().padStart(2, '0') + ':' +
+    now.getMinutes().toString().padStart(2, '0') + ':' +
     now.getSeconds().toString().padStart(2, '0');
 
   const roleLabel =
@@ -988,11 +1045,7 @@ function handleSummaryMessage(role, displayName, msgText) {
     role === 'gm'       ? '總經理' :
                           '管理階層';
 
-  blessingHistory.push({
-    time: timeStr,
-    name: `${displayName}`,
-    msg: msgText
-  });
+  blessingHistory.push({ time: timeStr, name: `${displayName}`, msg: msgText });
 
   const list = document.getElementById('messageList');
   const card = document.createElement('div');
@@ -1013,10 +1066,7 @@ function handleSummaryMessage(role, displayName, msgText) {
 /* ------------------------------------------------------------------ */
 const broker = "broker.emqx.io";
 const port = 8084;
-
-// ✅ 原本主 topic
 const topic = "kgi_event_2025_live_demo_vtaco";
-// ✅ 控制台用 topic（控制台 publish 到這裡）
 const controlTopic = topic + "_control";
 
 const clientID = "monitor_" + new Date().getTime();
@@ -1027,8 +1077,6 @@ client.onConnectionLost = function () {
 };
 
 client.onMessageArrived = function (msg) {
-  console.log("[MQTT ARRIVED] topic=", msg.destinationName, "payload=", msg.payloadString);
-
   let data;
   try {
     data = JSON.parse(msg.payloadString);
@@ -1042,8 +1090,6 @@ client.onMessageArrived = function (msg) {
   const action = String(data.action || data.cmd || "").trim();
 
   if (isControlTopic || type === "vip_control") {
-    console.log("[VIP CONTROL] action=", action);
-
     switch (action) {
       case "dim_building":
         suspendMarquee();
@@ -1085,13 +1131,17 @@ client.onMessageArrived = function (msg) {
         vipNextStep();
         break;
 
+      /* ✅ 新增：控制台純點燈（不送祝福內容） */
+      case "light_one":
+        lightOnePieceOnly();
+        break;
+
       default:
         console.warn("Unknown control action:", action);
     }
     return;
   }
 
-  // --- 你原本 wish/summary 邏輯維持 ---
   try {
     const office = (data.office || "").trim();
     const name = (data.name || "").trim();
@@ -1107,16 +1157,11 @@ client.onMessageArrived = function (msg) {
 
     if (msgType === "summary") {
       const item = { role, displayName, msgText, receivedAt: Date.now() };
-
       if (role === "gm") gmSummary = item;
       if (role === "chairman") chairmanSummary = item;
-
       pendingSummaryMessages.push(item);
 
-      // ✅ 如果大樓已全亮，確保按鈕可見（但不自動播放）
-      if (buildingFilledTime && vipButtonShown) {
-        vipBtn.style.display = 'block';
-      }
+      if (buildingFilledTime && vipButtonShown) vipBtn.style.display = 'block';
     } else {
       handleIncoming(displayName, msgText);
     }
@@ -1131,7 +1176,6 @@ function connectMQTT() {
     onSuccess: function () {
       client.subscribe(topic);
       client.subscribe(controlTopic);
-      console.log("[MQTT] subscribed:", topic, controlTopic);
     },
     onFailure: function () {}
   });

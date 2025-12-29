@@ -998,11 +998,18 @@ function showVipCouplet(role, displayName, msgText) {
   inner.appendChild(cellsWrap);
   couplet.appendChild(inner);
 
+  // ✅ 關鍵：董事長（左欄）label 在左；總經理（右欄）label 在右
   targetCol.innerHTML = '';
-  wrap.appendChild(label);
-  wrap.appendChild(couplet);
+  if (role === 'gm') {
+    wrap.appendChild(couplet);
+    wrap.appendChild(label);   // label 放右邊
+  } else {
+    wrap.appendChild(label);   // label 放左邊
+    wrap.appendChild(couplet);
+  }
   targetCol.appendChild(wrap);
 }
+
 
 function startVipStar(role, displayName, msgText) {
   const displayArea = document.getElementById('displayArea');

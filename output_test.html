@@ -349,18 +349,12 @@
 
     .vip-column {
       position: absolute;
-    
-      /* ✅ 置頂：固定從上方開始排 */
-      top: 15vh;                 /* 你想更貼近標題就改小一點，例如 12vh */
+      top: 15vh;
       bottom: auto;
-    
       width: 12%;
       display: flex;
-    
-      /* ✅ 原本是置中：改成置頂 */
       align-items: flex-start;
       justify-content: flex-start;
-    
       pointer-events: none;
       z-index: 150;
     }
@@ -388,12 +382,10 @@
       box-sizing: border-box;
     }
 
-    /* ✅ 直式文字放在 inner：避免內容區變橫排 */
     .couplet-inner{
       writing-mode: vertical-rl;
       text-orientation: upright;
       display: flex;
-      /* 這裡不使用 column，避免在垂直書寫模式主軸跑錯方向 */
       flex-direction: column;
       align-items: center;
     }
@@ -435,11 +427,10 @@
       line-height: 1;
     }
 
-    /* ✅ 內容：用「row」在 vertical writing-mode 下沿著直向排列 */
     .couplet-cells{
       font-size: var(--couplet-text-size);
       display: flex;
-      flex-direction: row;          /* ✅ 在 vertical-rl 下，row 會沿直向排 */
+      flex-direction: row;
       justify-content: space-between;
       gap: var(--couplet-cell-gap);
       align-items: center;
@@ -454,7 +445,6 @@
     }
     .couplet-cells .cell.pad{ opacity: 0.35; }
 
-    /* ✅ VIP 手動流程按鈕 */
     .vip-step-btn{
       position: fixed;
       right: 18px;
@@ -476,7 +466,6 @@
       cursor: not-allowed;
     }
 
-    /* ---------------- ✅ QR Code（留言區右下角） ---------------- */
     .qr-box{
       position: absolute;
       right: 14px;
@@ -530,7 +519,6 @@
 
     <div class="message-list" id="messageList"></div>
 
-    <!-- ✅ QR Code 區塊（留言區右下角） -->
     <div id="qrBox" class="qr-box">
       <div id="qrCode"></div>
       <div class="qr-hint">掃描加入祝福</div>
@@ -538,7 +526,6 @@
   </div>
 </div>
 
-<!-- ✅ VIP 手動流程按鈕（全亮後才會顯示） -->
 <button id="vipStepBtn" class="vip-step-btn" onclick="vipNextStep()" style="display:none;">
   ① 變暗
 </button>
@@ -581,11 +568,10 @@ function initQRCode(){
 initQRCode();
 
 /* ------------------------------------------------------------------ */
-/* ✅ 春聯：固定 15 字格工具 + 強制固定高度（避免視覺被擠回變短/變橫） */
+/* ✅ 春聯：固定 15 字格工具 + 強制固定高度 */
 /* ------------------------------------------------------------------ */
 const COUPLET_CELLS = 15;
 
-// 不足補全形空白、超過截斷
 function toFixedCells(text, n = COUPLET_CELLS){
   const chars = Array.from((text || "").trim());
   const sliced = chars.slice(0, n);
@@ -615,18 +601,15 @@ function getCssVarNumberPx(varName, fallbackPx) {
   return Number.isFinite(n) ? n : fallbackPx;
 }
 
-// ✅ 關鍵：把「內容區」硬撐到固定 15 格高度（每格一個字）
 function applyCoupletFixedHeight(coupletEl, cellsEl, cellsCount) {
   const fontPx = getCssVarNumberPx("--couplet-text-size", 48);
   const gapPx  = getCssVarNumberPx("--couplet-cell-gap", 4);
 
-  // 用 height 強制內容區長度一致
   const textAreaHeight = (cellsCount * fontPx) + ((cellsCount - 1) * gapPx);
   cellsEl.style.height = `${textAreaHeight}px`;
 
-  // couplet 的 min-height 保底（避免 title 區擠壓造成看起來變短）
   const namePx = getCssVarNumberPx("--couplet-name-size", 64);
-  const extra = 16 + 16 + 10 + 14 + 14 + 18; // padding + margin + 卷軸杆緩衝
+  const extra = 16 + 16 + 10 + 14 + 14 + 18;
   coupletEl.style.minHeight = `${namePx + textAreaHeight + extra}px`;
 }
 
@@ -777,6 +760,31 @@ function getRandomEmptyIndex() {
   });
 
   return bestIndex;
+}
+
+/* ✅ 新增：只點燈（不寫側欄、不跑馬燈、不寫入祝福紀錄） */
+function lightOnePieceOnly() {
+  if (filledCount >= totalPieces) return;
+
+  const targetIndex = getRandomEmptyIndex();
+  if (targetIndex === -1) return;
+
+  const targetPiece = pieces[targetIndex];
+  const colorClass = targetPiece.dataset.colorClass;
+
+  targetPiece.classList.add(colorClass);
+  targetPiece.classList.add('active');
+  filledCount++;
+
+  if (filledCount >= totalPieces && !buildingFilledTime) {
+    buildingFilledTime = Date.now();
+
+    if (!vipButtonShown) {
+      vipBtn.style.display = 'block';
+      vipBtn.innerText = '① 變暗';
+      vipButtonShown = true;
+    }
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -979,11 +987,9 @@ function showVipCouplet(role, displayName, msgText) {
   const cellsWrap = document.createElement("div");
   cellsWrap.classList.add("couplet-cells");
 
-  // ✅ 固定 15 字格 + 不足補全形空白、超過截斷
   const cells = toFixedCells(msgText, COUPLET_CELLS);
   renderCells(cellsWrap, cells);
 
-  // ✅ 強制內容區高度：確保一定是 15 格、直式、不會被擠成幾個字
   applyCoupletFixedHeight(couplet, cellsWrap, COUPLET_CELLS);
 
   inner.appendChild(nameSpan);
@@ -1110,6 +1116,11 @@ client.onMessageArrived = function (msg) {
 
       case "next_step":
         vipNextStep();
+        break;
+
+      /* ✅ 新增：控制台純點燈（不送祝福內容） */
+      case "light_one":
+        lightOnePieceOnly();
         break;
 
       default:

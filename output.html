@@ -153,8 +153,11 @@
         39% 35%
       );
     }
-    .vip-star-left { left: 42%; }
-    .vip-star-right { left: 54%; }
+
+    /* ✅ 重要：不再用固定百分比定位星星（改由 JS 對齊春聯欄位中心） */
+    /* .vip-star-left { left: 42%; } */
+    /* .vip-star-right { left: 54%; } */
+
     @keyframes vipStarFly {
       0% { top: 100vh; opacity: 0; transform: scale(0.6); }
       30% { opacity: 1; }
@@ -444,10 +447,10 @@
     }
     .couplet-cells .cell.pad{ opacity: 0.35; }
 
-    /* ✅ 春聯外側稱呼：貼在春聯旁邊，不進入 writing-mode */
+    /* ✅ 春聯外側稱呼：貼在春聯旁邊（右側），不進入 spring 的 writing-mode */
     .vip-couplet-wrap{
       display: flex;
-      align-items: flex-start;   /* ✅ 置頂 */
+      align-items: flex-start; /* ✅ 置頂 */
       justify-content: flex-start;
       gap: 10px;
       pointer-events: none;
@@ -458,17 +461,14 @@
       color: gold;
       font-weight: 900;
       text-shadow: 0 0 12px rgba(255,215,0,0.55);
-    
+
       /* ✅ 改成直式 */
       writing-mode: vertical-rl;
       text-orientation: upright;
-    
-      /* 版面微調 */
+
       font-size: 2.2rem;
       line-height: 1;
       margin-top: 6px;
-    
-      /* 避免被擠壓 */
       flex: 0 0 auto;
     }
 
@@ -964,13 +964,14 @@ function vipNextStep() {
 /* ------------------------------------------------------------------ */
 /* 5. Summary handling (Chairman / GM spring couplets + stars) */
 /* ------------------------------------------------------------------ */
+
+/* ✅ 春聯：兩邊都統一「稱呼在右邊」，並用 flex 置頂 */
 function showVipCouplet(role, displayName, msgText) {
   const leftCol  = document.getElementById('vipLeft');
   const rightCol = document.getElementById('vipRight');
   const targetCol = (role === 'chairman') ? leftCol : rightCol;
   if (!targetCol) return;
 
-  // ✅ 稱呼只放在春聯外（旁邊）
   let nameLabel = '';
   if (role === 'chairman') nameLabel = '董事長：';
   else if (role === 'gm') nameLabel = '總經理：';
@@ -998,29 +999,33 @@ function showVipCouplet(role, displayName, msgText) {
   inner.appendChild(cellsWrap);
   couplet.appendChild(inner);
 
-  // ✅ 關鍵：董事長（左欄）label 在左；總經理（右欄）label 在右
+  // ✅ 統一：春聯在左、稱呼在右（董事長與總經理都一樣）
+  wrap.appendChild(couplet);
+  wrap.appendChild(label);
+
   targetCol.innerHTML = '';
-  if (role === 'gm') {
-    wrap.appendChild(couplet);
-    wrap.appendChild(label);   // label 放右邊
-  } else {
-    wrap.appendChild(label);   // label 放左邊
-    wrap.appendChild(couplet);
-  }
   targetCol.appendChild(wrap);
 }
 
-
+/* ✅ 星星：改成「對齊該側春聯欄位的中心」，確保星星與春聯垂直對準 */
 function startVipStar(role, displayName, msgText) {
   const displayArea = document.getElementById('displayArea');
   if (!displayArea) return;
 
+  const leftCol  = document.getElementById('vipLeft');
+  const rightCol = document.getElementById('vipRight');
+  const targetCol = (role === 'chairman') ? leftCol : rightCol;
+  if (!targetCol) return;
+
+  const areaRect = displayArea.getBoundingClientRect();
+  const colRect  = targetCol.getBoundingClientRect();
+  const centerX  = (colRect.left - areaRect.left) + (colRect.width / 2);
+
   const star = document.createElement('div');
   star.classList.add('vip-star');
 
-  if (role === 'chairman') star.classList.add('vip-star-left');
-  else if (role === 'gm') star.classList.add('vip-star-right');
-  else { star.style.left = '50%'; star.style.transform = 'translateX(-50%)'; }
+  const STAR_SIZE = 80; // 跟 CSS 的 vip-star 寬高一致
+  star.style.left = `${centerX - (STAR_SIZE / 2)}px`;
 
   displayArea.appendChild(star);
 

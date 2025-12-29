@@ -335,7 +335,7 @@
       border: 3px solid #ffffff;
       border-radius: 60px;
       box-shadow: 0 10px 50px rgba(0, 150, 255, 0.6);
-      animation: flyToTop 15s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+      animation: flyToTop 30s cubic-bezier(0.23, 1, 0.32, 1) forwards;
     }
     @keyframes flyToTop {
       0% { bottom: -150px; opacity: 0; transform: scale(0.5) rotate(-5deg); }
@@ -360,7 +360,6 @@
     .vip-left { left: var(--couplet-side-inset); }
     .vip-right { right: var(--couplet-side-inset); }
 
-    /* ✅ 卷軸展開 + 固定 20 格（用 Grid 穩定排版） */
     .couplet{
       writing-mode: vertical-rl;
       text-orientation: upright;
@@ -372,10 +371,13 @@
       font-weight: 900;
       box-shadow: 0 0 25px rgba(255, 200, 0, 0.8);
       pointer-events: auto;
+
       position: relative;
 
+      /* ✅ 關鍵：卷軸展開動畫 */
       transform-origin: top;
       transform: scaleY(0);
+      opacity: 1;
       animation: scrollUnroll var(--couplet-unroll-duration) cubic-bezier(0.2, 0.9, 0.25, 1) forwards;
       overflow: hidden;
 
@@ -416,33 +418,29 @@
 
     .couplet-name {
       font-size: var(--couplet-name-size);
-      line-height: 1;
-      margin-bottom: 10px;
       display: block;
+      margin-bottom: 6px;
+      line-height: 1;
       flex: 0 0 auto;
     }
 
-    /* ✅ 內容固定 20 格：用 grid 平均分配高度（不會因 writing-mode 跑掉） */
+    /* ✅ 內容：固定 20 格，且高度由 JS 設定（避免 calc 乘法失效） */
     .couplet-text{
       font-size: var(--couplet-text-size);
       display: grid;
       grid-template-rows: repeat(var(--couplet-cells), 1fr);
       row-gap: var(--couplet-cell-gap);
-
-      /* 固定內容區高度，確保兩張春聯一致長度 */
-      height: calc(var(--couplet-cells) * (var(--couplet-text-size) + var(--couplet-cell-gap)));
-      box-sizing: border-box;
-
+      height: auto; /* ✅ JS 會塞 textSpanEl.style.height */
       margin-top: 8px;
       flex: 0 0 auto;
     }
 
     .couplet-text .cell{
+      line-height: 1;
       display: flex;
       align-items: center;
       justify-content: center;
-      line-height: 1;
-      white-space: pre; /* 保留全形空白 */
+      white-space: pre;
     }
     .couplet-text .cell.pad{
       opacity: 0.35;
@@ -524,6 +522,7 @@
 
     <div class="message-list" id="messageList"></div>
 
+    <!-- ✅ QR Code 區塊（留言區右下角） -->
     <div id="qrBox" class="qr-box">
       <div id="qrCode"></div>
       <div class="qr-hint">掃描加入祝福</div>
@@ -531,6 +530,7 @@
   </div>
 </div>
 
+<!-- ✅ VIP 手動流程按鈕（全亮後才會顯示） -->
 <button id="vipStepBtn" class="vip-step-btn" onclick="vipNextStep()" style="display:none;">
   ① 變暗
 </button>
@@ -573,16 +573,15 @@ function initQRCode(){
 initQRCode();
 
 /* ------------------------------------------------------------------ */
-/* ✅ 春聯：固定 20 字格工具 */
+/* ✅ 春聯：固定 20 字格工具（含：強制固定高度，避免 CSS calc 乘法失效） */
 /* ------------------------------------------------------------------ */
 const COUPLET_CELLS = 20;
 
 // 把文字轉成「20格」：不足補全形空白，超過截斷
 function toFixedCells(text, n = COUPLET_CELLS){
-  const raw = (text ?? "").toString();
-  const chars = Array.from(raw); // 保留所有字元（含空白/標點）
+  const chars = Array.from((text || "").trim());
   const sliced = chars.slice(0, n);
-  while (sliced.length < n) sliced.push("\u3000"); // 全形空白
+  while (sliced.length < n) sliced.push("　"); // 全形空白（可視化填格）
   return sliced;
 }
 
@@ -591,10 +590,38 @@ function renderCells(containerEl, chars){
   containerEl.innerHTML = "";
   chars.forEach(ch => {
     const cell = document.createElement("span");
-    cell.className = "cell" + (ch === "\u3000" ? " pad" : "");
+    cell.className = "cell" + (ch === "　" ? " pad" : "");
     cell.textContent = ch;
     containerEl.appendChild(cell);
   });
+}
+
+function getCssVarNumberPx(varName, fallbackPx) {
+  const v = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+  if (!v) return fallbackPx;
+
+  if (v.endsWith("px")) return parseFloat(v);
+  if (v.endsWith("rem")) {
+    const rootFont = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+    return parseFloat(v) * rootFont;
+  }
+  const n = parseFloat(v);
+  return Number.isFinite(n) ? n : fallbackPx;
+}
+
+// ✅ 強制把「內容區」撐成 20 格固定高度（保證視覺上一定是 20 格）
+function applyCoupletFixedHeight(coupletEl, textSpanEl, cells) {
+  const fontPx = getCssVarNumberPx("--couplet-text-size", 48); // 3rem ≈ 48px
+  const gapPx  = getCssVarNumberPx("--couplet-cell-gap", 4);   // 0.25rem ≈ 4px
+
+  // 內容區高度：cells 格 * 字高 + (cells-1) * gap
+  const textAreaHeight = (cells * fontPx) + ((cells - 1) * gapPx);
+  textSpanEl.style.height = `${textAreaHeight}px`;
+
+  // (保底) 春聯整體 min-height，避免 name 區擠壓內容
+  const namePx = getCssVarNumberPx("--couplet-name-size", 64); // 4rem ≈ 64px
+  const extra = 16 + 12 + 8 + 14 + 14 + 24; // padding/間距/上下杆緩衝（保守估）
+  coupletEl.style.minHeight = `${namePx + textAreaHeight + extra}px`;
 }
 
 /* ------------------------------------------------------------------ */
@@ -797,7 +824,7 @@ function manualDownloadBackup() {
 /* ------------------------------------------------------------------ */
 const marqueeLanes = [2, 18, 34, 50];
 const laneNextAvailable = [0, 0, 0, 0];
-const MARQUEE_DURATION_MS = 100000;
+const MARQUEE_DURATION_MS = 30000;
 let marqueeEnabled = true;
 
 function suspendMarquee() {
@@ -837,6 +864,7 @@ function showMarquee(text) {
   setTimeout(cleanup, MARQUEE_DURATION_MS + 800);
 }
 
+/* participants handling */
 function handleIncoming(displayName, msgText) {
   const now = new Date();
   const timeStr =
@@ -915,11 +943,12 @@ function vipNextStep() {
     vipStep = 3;
     vipBtn.innerText = '完成';
     vipBtn.disabled = true;
+    return;
   }
 }
 
 /* ------------------------------------------------------------------ */
-/* 5. Summary handling */
+/* 5. Summary handling (Chairman / GM spring couplets + stars) */
 /* ------------------------------------------------------------------ */
 function showVipCouplet(role, displayName, msgText) {
   const leftCol  = document.getElementById('vipLeft');
@@ -941,8 +970,12 @@ function showVipCouplet(role, displayName, msgText) {
   const textSpan = document.createElement("span");
   textSpan.classList.add("couplet-text");
 
+  // ✅ 固定 20 字格 + 不足補全形空白、超過截斷
   const cells = toFixedCells(msgText, COUPLET_CELLS);
   renderCells(textSpan, cells);
+
+  // ✅ 關鍵：強制把內容區撐成 20 格固定高度（避免 CSS calc 乘法失效）
+  applyCoupletFixedHeight(couplet, textSpan, COUPLET_CELLS);
 
   couplet.appendChild(nameSpan);
   couplet.appendChild(textSpan);
@@ -1010,7 +1043,6 @@ const controlTopic = topic + "_control";
 const clientID = "monitor_" + new Date().getTime();
 const client = new Paho.MQTT.Client(broker, port, clientID);
 
-let totalPieces = 0; // for scope safety (already used above)
 client.onConnectionLost = function () {
   setTimeout(connectMQTT, 2000);
 };
@@ -1110,7 +1142,6 @@ function connectMQTT() {
     onSuccess: function () {
       client.subscribe(topic);
       client.subscribe(controlTopic);
-      console.log("[MQTT] subscribed:", topic, controlTopic);
     },
     onFailure: function () {}
   });

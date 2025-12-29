@@ -23,12 +23,12 @@
       --grid-size: min(8.2vh, 8.2vw);
 
       /* ✅ 春聯固定字數/格子設定 */
-      --couplet-cells: 20;                 /* ✅ 改成 20 格 */
-      --couplet-text-size: 3rem;           /* 內容字級（會在 JS 自動縮放） */
-      --couplet-name-size: 4rem;           /* 稱呼字級（會在 JS 自動縮放） */
+      --couplet-cells: 15;                 /* ✅ 春聯字數 */
+      --couplet-text-size: 3rem;           /* 內容字級 */
+      --couplet-name-size: 4rem;           /* （保留變數，不一定用得到） */
       --couplet-cell-gap: 0.25rem;         /* 格子間距 */
-      --couplet-unroll-duration: 5.5s;     /* 卷軸展開速度 */
-      --couplet-side-inset: 25vw;          /* 春聯往中間靠的距離 */
+      --couplet-unroll-duration: 5.5s;     /* ✅ 卷軸展開速度（越大越慢） */
+      --couplet-side-inset: 25vw;          /* ✅ 春聯往中間靠的距離（越小越靠中間） */
     }
 
     body {
@@ -106,6 +106,10 @@
         0 0 65px rgba(0, 100, 255, 0.6);
       z-index: 200;
       animation: titleGlow 4s ease-in-out infinite;
+    }
+    @keyframes titleGlow {
+      0%, 100% { filter: drop-shadow(0 0 0 rgba(255,215,0,0)); }
+      50% { filter: drop-shadow(0 0 15px rgba(255,215,0,0.6)); }
     }
 
     .building-wrapper {
@@ -280,6 +284,10 @@
       overflow: hidden;
       animation: slideInRight 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
+    @keyframes slideInRight {
+      0% { transform: translateX(30px); opacity: 0; }
+      100% { transform: translateX(0); opacity: 1; }
+    }
 
     .msg-card.vip-summary {
       border-left-color: gold;
@@ -346,18 +354,14 @@
     }
 
     /* ---------------- 春聯 ---------------- */
-
     .vip-column {
       position: absolute;
       top: 15vh;
       bottom: auto;
       width: 12%;
       display: flex;
-
-      /* ✅ 置頂 */
       align-items: flex-start;
       justify-content: flex-start;
-
       pointer-events: none;
       z-index: 150;
     }
@@ -374,30 +378,22 @@
       font-weight: 900;
       box-shadow: 0 0 25px rgba(255, 200, 0, 0.8);
       pointer-events: auto;
-
       position: relative;
-
       transform-origin: top;
       transform: scaleY(0);
       opacity: 1;
       animation: scrollUnroll var(--couplet-unroll-duration) cubic-bezier(0.2, 0.9, 0.25, 1) forwards;
       overflow: hidden;
       box-sizing: border-box;
-
-      /* ✅ 讓春聯本體不要超出畫面：保留上下安全距 */
-      max-height: 74vh;
     }
 
-    /* ✅ 直式文字：只放在 inner（名稱 + 格子都維持直式） */
+    /* ✅ 直式內容：只放「輸入文字」格子 */
     .couplet-inner{
       writing-mode: vertical-rl;
       text-orientation: upright;
       display: flex;
       flex-direction: column;
-
-      /* ✅ 整體內容置頂，不要置中 */
-      align-items: flex-start;
-      justify-content: flex-start;
+      align-items: center;
     }
 
     .couplet::before{
@@ -430,39 +426,42 @@
       100% { transform: scaleY(1); }
     }
 
-    /* ✅ 名稱：在「直式模式」下，這一段要置頂 */
-    .couplet-name {
-      font-size: var(--couplet-name-size);
-      display: block;
-      margin: 0 0 10px 0;
-      line-height: 1;
-
-      /* ✅ 不要被 flex 置中影響 */
-      align-self: flex-start;
-    }
-
-    /* ✅ 格子：用 column 真的一格一格往下堆（避免變成單條直排） */
     .couplet-cells{
       font-size: var(--couplet-text-size);
       display: flex;
-      flex-direction: column;          /* ✅ 關鍵：一格一字往下 */
-      justify-content: flex-start;     /* ✅ 置頂 */
-      align-items: center;
+      flex-direction: row;
+      justify-content: space-between;
       gap: var(--couplet-cell-gap);
+      align-items: center;
     }
 
-    /* ✅ 每格字：保留直排字形（特別是英數） */
     .couplet-cells .cell{
       display: flex;
       align-items: center;
       justify-content: center;
       line-height: 1;
       white-space: pre;
-
-      writing-mode: vertical-rl;
-      text-orientation: upright;
     }
     .couplet-cells .cell.pad{ opacity: 0.35; }
+
+    /* ✅ 春聯外側稱呼：貼在春聯旁邊，不進入 writing-mode */
+    .vip-couplet-wrap{
+      display: flex;
+      align-items: flex-start;   /* ✅ 置頂 */
+      justify-content: flex-start;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .vip-couplet-label{
+      pointer-events: none;
+      color: gold;
+      font-weight: 900;
+      white-space: nowrap;
+      text-shadow: 0 0 12px rgba(255,215,0,0.55);
+      font-size: 2.2rem;
+      margin-top: 6px;
+    }
 
     .vip-step-btn{
       position: fixed;
@@ -587,11 +586,11 @@ function initQRCode(){
 initQRCode();
 
 /* ------------------------------------------------------------------ */
-/* ✅ 春聯：固定格子 + 自動縮放，避免 20 格超出畫面 */
+/* ✅ 春聯：固定字格工具 */
 /* ------------------------------------------------------------------ */
-const COUPLET_CELLS = 20;
+const COUPLET_CELLS = 15;
 
-/* 不足補全形空白、超過截斷 */
+// 不足補全形空白、超過截斷
 function toFixedCells(text, n = COUPLET_CELLS){
   const chars = Array.from((text || "").trim());
   const sliced = chars.slice(0, n);
@@ -606,49 +605,6 @@ function renderCells(containerEl, chars){
     cell.className = "cell" + (ch === "　" ? " pad" : "");
     cell.textContent = ch;
     containerEl.appendChild(cell);
-  });
-}
-
-/* 讀 CSS 變數 px */
-function getCssVarNumberPx(varName, fallbackPx) {
-  const v = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
-  if (!v) return fallbackPx;
-  if (v.endsWith("px")) return parseFloat(v);
-  if (v.endsWith("rem")) {
-    const rootFont = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
-    return parseFloat(v) * rootFont;
-  }
-  const n = parseFloat(v);
-  return Number.isFinite(n) ? n : fallbackPx;
-}
-
-/* ✅ 核心：固定 20 格 + 自動縮放，避免超出視窗 */
-function fitCoupletToViewport(coupletEl, nameEl, cellsEl) {
-  // 允許的最大高度（和 CSS max-height 同步概念）
-  const maxH = Math.floor(window.innerHeight * 0.74);
-
-  const baseNamePx = getCssVarNumberPx("--couplet-name-size", 64);
-  const baseTextPx = getCssVarNumberPx("--couplet-text-size", 48);
-
-  // 先用基準字級套上（之後再縮）
-  nameEl.style.fontSize = baseNamePx + "px";
-  cellsEl.style.fontSize = baseTextPx + "px";
-
-  // 讓瀏覽器先排版後量高度
-  requestAnimationFrame(() => {
-    const curH = coupletEl.scrollHeight;
-
-    // 如果沒超出就不動
-    if (curH <= maxH) return;
-
-    // 依比例縮小（留一點安全邊界 0.96）
-    const ratio = (maxH / curH) * 0.96;
-
-    const newName = Math.max(24, Math.floor(baseNamePx * ratio));
-    const newText = Math.max(18, Math.floor(baseTextPx * ratio));
-
-    nameEl.style.fontSize = newName + "px";
-    cellsEl.style.fontSize = newText + "px";
   });
 }
 
@@ -675,10 +631,8 @@ const building = document.getElementById('building');
 const pieces = [];
 
 let buildingFilledTime = null;
-const pendingSummaryMessages = [];
-const SUMMARY_DELAY_MS = 5000;
 
-/* ✅ VIP 手動流程控制 */
+// ✅ VIP 手動流程控制
 let vipStep = 0;
 let vipButtonShown = false;
 let gmSummary = null;
@@ -942,7 +896,6 @@ function handleIncoming(displayName, msgText) {
 
   if (filledCount >= totalPieces && !buildingFilledTime) {
     buildingFilledTime = Date.now();
-
     if (!vipButtonShown) {
       vipBtn.style.display = 'block';
       vipBtn.innerText = '① 變暗';
@@ -1008,9 +961,18 @@ function showVipCouplet(role, displayName, msgText) {
   const targetCol = (role === 'chairman') ? leftCol : rightCol;
   if (!targetCol) return;
 
+  // ✅ 稱呼只放在春聯外（旁邊）
   let nameLabel = '';
-  if (role === 'chairman') nameLabel = '董事長';
-  else if (role === 'gm') nameLabel = '總經理';
+  if (role === 'chairman') nameLabel = '董事長：';
+  else if (role === 'gm') nameLabel = '總經理：';
+  else nameLabel = '管理階層：';
+
+  const wrap = document.createElement("div");
+  wrap.className = "vip-couplet-wrap";
+
+  const label = document.createElement("div");
+  label.className = "vip-couplet-label";
+  label.textContent = nameLabel;
 
   const couplet = document.createElement("div");
   couplet.classList.add("couplet");
@@ -1018,25 +980,19 @@ function showVipCouplet(role, displayName, msgText) {
   const inner = document.createElement("div");
   inner.classList.add("couplet-inner");
 
-  const nameSpan = document.createElement("span");
-  nameSpan.classList.add("couplet-name");
-  nameSpan.innerText = nameLabel + "：";
-
   const cellsWrap = document.createElement("div");
   cellsWrap.classList.add("couplet-cells");
 
   const cells = toFixedCells(msgText, COUPLET_CELLS);
   renderCells(cellsWrap, cells);
 
-  inner.appendChild(nameSpan);
   inner.appendChild(cellsWrap);
   couplet.appendChild(inner);
 
   targetCol.innerHTML = '';
-  targetCol.appendChild(couplet);
-
-  // ✅ 20 格時自動縮放，避免超出畫面
-  fitCoupletToViewport(couplet, nameSpan, cellsWrap);
+  wrap.appendChild(label);
+  wrap.appendChild(couplet);
+  targetCol.appendChild(wrap);
 }
 
 function startVipStar(role, displayName, msgText) {
@@ -1185,9 +1141,6 @@ client.onMessageArrived = function (msg) {
       const item = { role, displayName, msgText, receivedAt: Date.now() };
       if (role === "gm") gmSummary = item;
       if (role === "chairman") chairmanSummary = item;
-      pendingSummaryMessages.push(item);
-
-      if (buildingFilledTime && vipButtonShown) vipBtn.style.display = 'block';
     } else {
       handleIncoming(displayName, msgText);
     }
@@ -1209,22 +1162,6 @@ function connectMQTT() {
 
 initBuilding();
 connectMQTT();
-
-/* ✅ 視窗尺寸改變時，若春聯已存在，重新 fit（投影/全螢幕切換很常用） */
-window.addEventListener("resize", () => {
-  const left = document.querySelector("#vipLeft .couplet");
-  if (left) {
-    const name = left.querySelector(".couplet-name");
-    const cells = left.querySelector(".couplet-cells");
-    if (name && cells) fitCoupletToViewport(left, name, cells);
-  }
-  const right = document.querySelector("#vipRight .couplet");
-  if (right) {
-    const name = right.querySelector(".couplet-name");
-    const cells = right.querySelector(".couplet-cells");
-    if (name && cells) fitCoupletToViewport(right, name, cells);
-  }
-});
 </script>
 
 </body>

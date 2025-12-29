@@ -23,7 +23,7 @@
       --grid-size: min(8.2vh, 8.2vw);
 
       /* ✅ 春聯固定字數/格子設定 */
-      --couplet-cells: 15;                 /* ✅ 改成 15 字 */
+      --couplet-cells: 20;                 /* ✅ 改成 20 字 */
       --couplet-text-size: 3rem;           /* 內容字級 */
       --couplet-name-size: 4rem;           /* 稱呼字級 */
       --couplet-cell-gap: 0.25rem;         /* 格子間距 */
@@ -380,6 +380,10 @@
       animation: scrollUnroll var(--couplet-unroll-duration) cubic-bezier(0.2, 0.9, 0.25, 1) forwards;
       overflow: hidden;
       box-sizing: border-box;
+
+      /* ✅ 置頂：讓內容永遠從上開始排（避免稱呼視覺置中） */
+      display: flex;
+      align-items: flex-start;
     }
 
     .couplet-inner{
@@ -388,6 +392,11 @@
       display: flex;
       flex-direction: column;
       align-items: center;
+
+      /* ✅ 置頂關鍵：撐滿高度 + 從上排 */
+      height: 100%;
+      justify-content: flex-start;
+      padding-top: 10px; /* 可自行調整：0~14px */
     }
 
     .couplet::before{
@@ -568,9 +577,9 @@ function initQRCode(){
 initQRCode();
 
 /* ------------------------------------------------------------------ */
-/* ✅ 春聯：固定 15 字格工具 + 強制固定高度 */
+/* ✅ 春聯：固定 20 字格工具 + 強制固定高度 */
 /* ------------------------------------------------------------------ */
-const COUPLET_CELLS = 15;
+const COUPLET_CELLS = 20;
 
 function toFixedCells(text, n = COUPLET_CELLS){
   const chars = Array.from((text || "").trim());
@@ -601,6 +610,7 @@ function getCssVarNumberPx(varName, fallbackPx) {
   return Number.isFinite(n) ? n : fallbackPx;
 }
 
+// ✅ 關鍵：把「內容區」硬撐到固定 N 格高度（每格一個字）
 function applyCoupletFixedHeight(coupletEl, cellsEl, cellsCount) {
   const fontPx = getCssVarNumberPx("--couplet-text-size", 48);
   const gapPx  = getCssVarNumberPx("--couplet-cell-gap", 4);
@@ -609,7 +619,7 @@ function applyCoupletFixedHeight(coupletEl, cellsEl, cellsCount) {
   cellsEl.style.height = `${textAreaHeight}px`;
 
   const namePx = getCssVarNumberPx("--couplet-name-size", 64);
-  const extra = 16 + 16 + 10 + 14 + 14 + 18;
+  const extra = 16 + 16 + 10 + 14 + 14 + 18; // padding + margin + 卷軸杆緩衝
   coupletEl.style.minHeight = `${namePx + textAreaHeight + extra}px`;
 }
 
@@ -987,9 +997,11 @@ function showVipCouplet(role, displayName, msgText) {
   const cellsWrap = document.createElement("div");
   cellsWrap.classList.add("couplet-cells");
 
+  // ✅ 固定 20 字格 + 不足補全形空白、超過截斷
   const cells = toFixedCells(msgText, COUPLET_CELLS);
   renderCells(cellsWrap, cells);
 
+  // ✅ 強制內容區高度：確保一定是 20 格、直式、不會被擠成幾個字
   applyCoupletFixedHeight(couplet, cellsWrap, COUPLET_CELLS);
 
   inner.appendChild(nameSpan);

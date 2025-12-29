@@ -29,6 +29,7 @@
       --couplet-cell-gap: 0.25rem;         /* 格子間距 */
       --couplet-unroll-duration: 5.5s;     /* ✅ 卷軸展開速度（越大越慢） */
       --couplet-side-inset: 28vw;          /* ✅ 春聯往中間靠的距離（越小越靠中間） */
+      --couplet-side-inset-right: 38vw; 
     }
 
     body {
@@ -370,7 +371,7 @@
     }
 
     .vip-left { left: var(--couplet-side-inset); }
-    .vip-right { right: var(--couplet-side-inset); }
+    .vip-right { right: var(--couplet-side-inset-right); }
 
     .couplet{
       padding: 16px 12px;

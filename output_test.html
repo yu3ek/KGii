@@ -346,17 +346,25 @@
     }
 
     /* ---------------- 春聯 ---------------- */
+
     .vip-column {
       position: absolute;
-      top: 15vh;
-      bottom: 8vh;
+    
+      /* ✅ 置頂：固定從上方開始排 */
+      top: 15vh;                 /* 你想更貼近標題就改小一點，例如 12vh */
+      bottom: auto;
+    
       width: 12%;
       display: flex;
-      align-items: center;
-      justify-content: center;
+    
+      /* ✅ 原本是置中：改成置頂 */
+      align-items: flex-start;
+      justify-content: flex-start;
+    
       pointer-events: none;
       z-index: 150;
     }
+
     .vip-left { left: var(--couplet-side-inset); }
     .vip-right { right: var(--couplet-side-inset); }
 

@@ -462,29 +462,41 @@
       color: gold;
       font-weight: 900;
     
-      /* ✅ 直式 */
+      /* 直式 */
       writing-mode: vertical-rl;
       text-orientation: upright;
     
-      /* ✅ 字體大小（你若要跟春聯一樣大，就讓它吃同一個變數） */
+      /* 字級跟春聯一致 */
       font-size: var(--couplet-text-size);
       line-height: 1;
       margin-top: 6px;
       flex: 0 0 auto;
     
-      /* ✅ 炫光：多層文字光暈 + 外發光 */
+      /* ✅ 黑色描邊（重點） */
       text-shadow:
-        0 0 6px rgba(255, 215, 0, 0.95),
-        0 0 14px rgba(255, 215, 0, 0.85),
-        0 0 26px rgba(255, 180, 0, 0.75),
-        0 0 40px rgba(255, 120, 0, 0.55);
+        /* 黑框（四周） */
+        -1px -1px 0 #000,
+         1px -1px 0 #000,
+        -1px  1px 0 #000,
+         1px  1px 0 #000,
+        -2px  0   0 #000,
+         2px  0   0 #000,
+         0   -2px 0 #000,
+         0    2px 0 #000,
     
-      filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.75))
-              drop-shadow(0 0 22px rgba(255, 180, 0, 0.55));
+        /* 金色炫光 */
+         0 0 6px  rgba(255,215,0,0.95),
+         0 0 14px rgba(255,215,0,0.85),
+         0 0 26px rgba(255,180,0,0.75),
+         0 0 40px rgba(255,120,0,0.55);
     
-      /* ✅ 微微閃爍呼吸燈 */
+      filter:
+        drop-shadow(0 0 10px rgba(255,215,0,0.75))
+        drop-shadow(0 0 22px rgba(255,180,0,0.55));
+    
       animation: vipLabelGlow 1.6s ease-in-out infinite;
     }
+
     
     /* ✅ 呼吸閃爍：亮->更亮->回來 */
     @keyframes vipLabelGlow{

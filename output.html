@@ -457,10 +457,19 @@
       pointer-events: none;
       color: gold;
       font-weight: 900;
-      white-space: nowrap;
       text-shadow: 0 0 12px rgba(255,215,0,0.55);
+    
+      /* ✅ 改成直式 */
+      writing-mode: vertical-rl;
+      text-orientation: upright;
+    
+      /* 版面微調 */
       font-size: 2.2rem;
+      line-height: 1;
       margin-top: 6px;
+    
+      /* 避免被擠壓 */
+      flex: 0 0 auto;
     }
 
     .vip-step-btn{

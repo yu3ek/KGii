@@ -440,25 +440,28 @@
       text-orientation: upright;
     }
 
-    /* ✅ 內容格子自己直排 */
+    /* ✅ 內容格子：改成「由上往下」堆 20 格 */
     .couplet-cells{
       font-size: var(--couplet-text-size);
       display: flex;
-      flex-direction: row;
-      justify-content: space-between;
-      gap: var(--couplet-cell-gap);
+      flex-direction: column;          /* ✅ 由上往下堆格子 */
+      justify-content: flex-start;     /* ✅ 置頂 */
       align-items: center;
-
-      writing-mode: vertical-rl;
-      text-orientation: upright;
+      gap: var(--couplet-cell-gap);
+    
+      /* ❌ 不要在這裡寫 writing-mode */
     }
-
+    
+    /* ✅ 每一格自己直排（保留“格子感”與換行） */
     .couplet-cells .cell{
       display: flex;
       align-items: center;
       justify-content: center;
       line-height: 1;
       white-space: pre;
+    
+      writing-mode: vertical-rl;       /* ✅ 直排只套在單格 */
+      text-orientation: upright;
     }
     .couplet-cells .cell.pad{ opacity: 0.35; }
 

@@ -113,6 +113,12 @@
     }
     .pill.ok { border-color: rgba(105,255,173,0.6); color:#69ffad; }
     .pill.bad { border-color: rgba(255,92,122,0.6); color:#ff9bb0; }
+
+    /* 小分隔線（視覺用） */
+    .divider{
+      margin: 14px 0 8px 0;
+      border-top: 1px dashed rgba(255,255,255,0.25);
+    }
   </style>
 </head>
 
@@ -150,7 +156,7 @@
 
     <!-- 壓力測試 -->
     <div class="panel">
-      <h3>壓力測試（參與者訊息）</h3>
+      <h3>壓力測試（參與者訊息）＋純點燈</h3>
 
       <label>一次送出幾筆參與者訊息？</label>
       <input type="number" id="countInput" placeholder="例如：100" />
@@ -158,12 +164,32 @@
       <label>送出間隔（毫秒）</label>
       <input type="number" id="intervalInput" value="450" />
 
-      <button onclick="startStress()">開始壓力測試</button>
+      <button onclick="startStress()">開始壓力測試（送 wish）</button>
       <button class="danger" onclick="stopStress()" id="stopStressBtn" disabled>停止</button>
 
       <div class="status" id="stressStatus"></div>
       <div class="small">
-        此區送的是 wish（一般參與者）到「主 Topic」。
+        此區壓測送的是 wish（一般參與者）到「主 Topic」。
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- ✅ 新增：純點燈（不送祝福內容） -->
+      <label>純點燈：一次點亮幾盞？（不送祝福）</label>
+      <input type="number" id="lightCountInput" value="10" />
+
+      <label>純點燈間隔（毫秒）</label>
+      <input type="number" id="lightIntervalInput" value="80" />
+
+      <div class="row2">
+        <button class="secondary" onclick="lightOne()">點亮 1 盞（不送祝福）</button>
+        <button class="secondary" onclick="startLightOnly()">批次點燈（不送祝福）</button>
+      </div>
+      <button class="danger" onclick="stopLightOnly()" id="stopLightBtn" disabled>停止純點燈</button>
+
+      <div class="status" id="lightStatus"></div>
+      <div class="small">
+        此區送的是控制指令 <b>action=light_one</b> 到「控制 Topic」，僅用來點亮許願牆燈，不會產生跑馬燈/側欄訊息（前提：Output 端需支援 light_one）。
       </div>
     </div>
 
@@ -274,7 +300,8 @@
         if (client && connected) client.disconnect();
       } catch(e){}
       setConnUI(false, `[${nowStr()}] 已手動斷線`);
-      stopStress();
+      stopStress(true);
+      stopLightOnly(true);
     }
 
     function sendToTopic(topic, payloadObj){
@@ -289,7 +316,7 @@
       return true;
     }
 
-    /* ---------------- 假資料池（壓力測試） ---------------- */
+    /* ---------------- 假資料池（壓力測試：wish） ---------------- */
     const TEST_OFFICES = ["北一","北二","桃竹","中嘉","台南","高屏","總公司"];
     const TEST_NAMES   = ["王小明","李小華","高婷婷","陳凱翔","周育誠","林家豪","何美靜"];
     const TEST_MSGS    = [
@@ -323,7 +350,7 @@
       if (!count || count <= 0) { alert("請輸入有效的筆數"); return; }
 
       const box = document.getElementById("stressStatus");
-      box.innerText = `[${nowStr()}] 開始送出 ${count} 筆訊息…（間隔 ${interval}ms）`;
+      box.innerText = `[${nowStr()}] 開始送出 ${count} 筆 wish…（間隔 ${interval}ms）`;
       document.getElementById("stopStressBtn").disabled = false;
 
       let sent = 0;
@@ -331,14 +358,14 @@
 
       stressTimer = setInterval(() => {
         const ok = sendToTopic(topic, buildWishPayload());
-        if (!ok) { stopStress(); return; }
+        if (!ok) { stopStress(true); return; }
 
         sent++;
-        box.innerText = `[${nowStr()}] 已送出 ${sent} / ${count}`;
+        box.innerText = `[${nowStr()}] 已送出 wish ${sent} / ${count}`;
 
         if (sent >= count) {
           stopStress(true);
-          box.innerText = `[${nowStr()}] 完成：共送出 ${count} 筆訊息`;
+          box.innerText = `[${nowStr()}] 完成：共送出 wish ${count} 筆訊息`;
         }
       }, interval);
     }
@@ -352,7 +379,7 @@
       }
     }
 
-    /* ---------------- VIP 控制（送到 control topic） ---------------- */
+    /* ---------------- VIP / 控制指令（送到 control topic） ---------------- */
     function sendControl(action){
       const controlTopic = document.getElementById("controlTopicInput").value.trim();
       if (!controlTopic) { alert("控制 Topic 不可空白"); return; }
@@ -362,6 +389,58 @@
 
       document.getElementById("vipStatus").innerText =
         `[${nowStr()}] 已送出控制指令：${action}\n→ ${controlTopic}`;
+    }
+
+    /* ---------------- ✅ 純點燈（不送祝福） ---------------- */
+    let lightTimer = null;
+
+    function lightOne(){
+      const controlTopic = document.getElementById("controlTopicInput").value.trim();
+      if (!controlTopic) { alert("控制 Topic 不可空白"); return; }
+      const ok = sendToTopic(controlTopic, { action: "light_one" });
+      if (!ok) return;
+
+      document.getElementById("lightStatus").innerText =
+        `[${nowStr()}] 已送出：light_one（點亮 1 盞）\n→ ${controlTopic}`;
+    }
+
+    function startLightOnly(){
+      const controlTopic = document.getElementById("controlTopicInput").value.trim();
+      const count = parseInt(document.getElementById("lightCountInput").value, 10) || 1;
+      const interval = parseInt(document.getElementById("lightIntervalInput").value, 10) || 80;
+
+      if (!connected) { alert("尚未連上 MQTT！"); return; }
+      if (!controlTopic) { alert("控制 Topic 不可空白"); return; }
+      if (count <= 0) { alert("請輸入有效的點燈數量"); return; }
+
+      const box = document.getElementById("lightStatus");
+      box.innerText = `[${nowStr()}] 開始純點燈 ${count} 盞…（間隔 ${interval}ms）\n→ ${controlTopic}`;
+      document.getElementById("stopLightBtn").disabled = false;
+
+      let sent = 0;
+      clearInterval(lightTimer);
+
+      lightTimer = setInterval(() => {
+        const ok = sendToTopic(controlTopic, { action: "light_one" });
+        if (!ok) { stopLightOnly(true); return; }
+
+        sent++;
+        box.innerText = `[${nowStr()}] 純點燈已送出 ${sent} / ${count}\n→ ${controlTopic}`;
+
+        if (sent >= count) {
+          stopLightOnly(true);
+          box.innerText = `[${nowStr()}] 完成：純點燈共送出 ${count} 次 light_one\n→ ${controlTopic}`;
+        }
+      }, interval);
+    }
+
+    function stopLightOnly(silent){
+      clearInterval(lightTimer);
+      lightTimer = null;
+      document.getElementById("stopLightBtn").disabled = true;
+      if (!silent) {
+        document.getElementById("lightStatus").innerText = `[${nowStr()}] 已停止純點燈`;
+      }
     }
 
     /* ---------------- Summary 測試注入（送到主 topic） ---------------- */
@@ -374,7 +453,7 @@
       if (!topic) { alert("主 Topic 不可空白"); return; }
       if (!msg) { alert("內容不可空白"); return; }
 
-      // 你的 Output 端 summary 判斷：type === "summary" + role=gm/chairman
+      // Output 端 summary 判斷：type === "summary" + role=gm/chairman
       const payload = {
         type: "summary",
         role,

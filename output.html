@@ -23,13 +23,12 @@
       --grid-size: min(8.2vh, 8.2vw);
 
       /* ✅ 春聯固定字數/格子設定 */
-      --couplet-cells: 17
-      ;                 /* ✅ 改成 20 字 */
-      --couplet-text-size: 3rem;           /* 內容字級 */
-      --couplet-name-size: 4rem;           /* 稱呼字級 */
+      --couplet-cells: 20;                 /* ✅ 20 字 */
+      --couplet-text-size: 3rem;           /* 內容字級（會被自動縮放） */
+      --couplet-name-size: 4rem;           /* 稱呼字級（會被自動縮放） */
       --couplet-cell-gap: 0.25rem;         /* 格子間距 */
-      --couplet-unroll-duration: 5.5s;     /* ✅ 卷軸展開速度（越大越慢） */
-      --couplet-side-inset: 25vw;          /* ✅ 春聯往中間靠的距離（越小越靠中間） */
+      --couplet-unroll-duration: 5.5s;     /* 卷軸展開速度（越大越慢） */
+      --couplet-side-inset: 25vw;          /* 春聯往中間靠的距離（越小越靠中間） */
     }
     
     body {
@@ -381,23 +380,23 @@
       animation: scrollUnroll var(--couplet-unroll-duration) cubic-bezier(0.2, 0.9, 0.25, 1) forwards;
       overflow: hidden;
       box-sizing: border-box;
-
-      /* ✅ 置頂：讓內容永遠從上開始排（避免稱呼視覺置中） */
-      display: flex;
-      align-items: flex-start;
     }
 
+    /* ✅ 新增：內層縮放容器（用來 fit 高度，不干擾卷軸 scaleY 動畫） */
+    .couplet-scale{
+      transform-origin: top center;
+      width: 100%;
+    }
+
+    /* ✅ 置頂：不要在 outer 套 writing-mode，改由子元素各自套 */
     .couplet-inner{
-      writing-mode: vertical-rl;
-      text-orientation: upright;
       display: flex;
       flex-direction: column;
       align-items: center;
-
-      /* ✅ 置頂關鍵：撐滿高度 + 從上排 */
-      height: 100%;
-      justify-content: flex-start;
-      padding-top: 10px; /* 可自行調整：0~14px */
+      justify-content: flex-start; /* ✅ 真正的置頂 */
+      width: 100%;
+      padding-top: 6px; /* 可微調：0~12px */
+      box-sizing: border-box;
     }
 
     .couplet::before{
@@ -430,13 +429,18 @@
       100% { transform: scaleY(1); }
     }
 
+    /* ✅ 名稱自己直排（避免 outer writing-mode 搞亂 flex 行為） */
     .couplet-name {
       font-size: var(--couplet-name-size);
       display: block;
-      margin-bottom: 10px;
       line-height: 1;
+      margin-bottom: 10px;
+
+      writing-mode: vertical-rl;
+      text-orientation: upright;
     }
 
+    /* ✅ 內容格子自己直排 */
     .couplet-cells{
       font-size: var(--couplet-text-size);
       display: flex;
@@ -444,6 +448,9 @@
       justify-content: space-between;
       gap: var(--couplet-cell-gap);
       align-items: center;
+
+      writing-mode: vertical-rl;
+      text-orientation: upright;
     }
 
     .couplet-cells .cell{
@@ -578,9 +585,9 @@ function initQRCode(){
 initQRCode();
 
 /* ------------------------------------------------------------------ */
-/* ✅ 春聯：固定 20 字格工具 + 強制固定高度 */
+/* ✅ 春聯：固定 20 字格 + 強制高度 + 自動縮放 fit-to-viewport */
 /* ------------------------------------------------------------------ */
-const COUPLET_CELLS = 17;
+const COUPLET_CELLS = 20;
 
 function toFixedCells(text, n = COUPLET_CELLS){
   const chars = Array.from((text || "").trim());
@@ -611,7 +618,6 @@ function getCssVarNumberPx(varName, fallbackPx) {
   return Number.isFinite(n) ? n : fallbackPx;
 }
 
-// ✅ 關鍵：把「內容區」硬撐到固定 N 格高度（每格一個字）
 function applyCoupletFixedHeight(coupletEl, cellsEl, cellsCount) {
   const fontPx = getCssVarNumberPx("--couplet-text-size", 48);
   const gapPx  = getCssVarNumberPx("--couplet-cell-gap", 4);
@@ -622,6 +628,26 @@ function applyCoupletFixedHeight(coupletEl, cellsEl, cellsCount) {
   const namePx = getCssVarNumberPx("--couplet-name-size", 64);
   const extra = 16 + 16 + 10 + 14 + 14 + 18; // padding + margin + 卷軸杆緩衝
   coupletEl.style.minHeight = `${namePx + textAreaHeight + extra}px`;
+}
+
+/* ✅ 新增：把春聯縮放到「當前 column 可視高度」內 */
+function fitCoupletToViewport(coupletEl, scaleEl){
+  if (!coupletEl || !scaleEl) return;
+
+  // 先清掉舊縮放
+  scaleEl.style.transform = "scale(1)";
+
+  // 取得 column 從頂到視窗底的可用高度（保留些 padding）
+  const rect = coupletEl.getBoundingClientRect();
+  const safePadding = 18;
+  const available = Math.max(120, window.innerHeight - rect.top - safePadding);
+
+  // 用 scaleEl 本身的高度估算（縮放前）
+  const rawHeight = scaleEl.scrollHeight || rect.height;
+  if (!rawHeight) return;
+
+  const s = Math.min(1, available / rawHeight);
+  scaleEl.style.transform = `scale(${s})`;
 }
 
 /* ------------------------------------------------------------------ */
@@ -650,7 +676,6 @@ let buildingFilledTime = null;
 const pendingSummaryMessages = [];
 const SUMMARY_DELAY_MS = 5000;
 
-// ✅ VIP 手動流程控制
 let vipStep = 0;
 let vipButtonShown = false;
 let gmSummary = null;
@@ -773,7 +798,6 @@ function getRandomEmptyIndex() {
   return bestIndex;
 }
 
-/* ✅ 新增：只點燈（不寫側欄、不跑馬燈、不寫入祝福紀錄） */
 function lightOnePieceOnly() {
   if (filledCount >= totalPieces) return;
 
@@ -889,7 +913,6 @@ function showMarquee(text) {
   setTimeout(cleanup, MARQUEE_DURATION_MS + 800);
 }
 
-/* participants handling */
 function handleIncoming(displayName, msgText) {
   const now = new Date();
   const timeStr =
@@ -988,6 +1011,10 @@ function showVipCouplet(role, displayName, msgText) {
   const couplet = document.createElement("div");
   couplet.classList.add("couplet");
 
+  // ✅ 新增：縮放層（只縮這層，不影響卷軸展開動畫）
+  const scale = document.createElement("div");
+  scale.classList.add("couplet-scale");
+
   const inner = document.createElement("div");
   inner.classList.add("couplet-inner");
 
@@ -998,19 +1025,24 @@ function showVipCouplet(role, displayName, msgText) {
   const cellsWrap = document.createElement("div");
   cellsWrap.classList.add("couplet-cells");
 
-  // ✅ 固定 20 字格 + 不足補全形空白、超過截斷
   const cells = toFixedCells(msgText, COUPLET_CELLS);
   renderCells(cellsWrap, cells);
 
-  // ✅ 強制內容區高度：確保一定是 20 格、直式、不會被擠成幾個字
+  // 固定高度（20 格）
   applyCoupletFixedHeight(couplet, cellsWrap, COUPLET_CELLS);
 
   inner.appendChild(nameSpan);
   inner.appendChild(cellsWrap);
-  couplet.appendChild(inner);
+  scale.appendChild(inner);
+  couplet.appendChild(scale);
 
   targetCol.innerHTML = '';
   targetCol.appendChild(couplet);
+
+  // ✅ 放到 DOM 後再 fit（requestAnimationFrame 確保尺寸已計算）
+  requestAnimationFrame(() => {
+    fitCoupletToViewport(couplet, scale);
+  });
 }
 
 function startVipStar(role, displayName, msgText) {
@@ -1060,6 +1092,14 @@ function handleSummaryMessage(role, displayName, msgText) {
 
   startVipStar(role, displayName, msgText);
 }
+
+/* ✅ 視窗改變時，若春聯正在顯示就重新 fit（避免投影機/解析度切換爆版） */
+window.addEventListener("resize", () => {
+  document.querySelectorAll(".couplet").forEach(c => {
+    const s = c.querySelector(".couplet-scale");
+    fitCoupletToViewport(c, s);
+  });
+});
 
 /* ------------------------------------------------------------------ */
 /* 6. MQTT */
@@ -1131,7 +1171,6 @@ client.onMessageArrived = function (msg) {
         vipNextStep();
         break;
 
-      /* ✅ 新增：控制台純點燈（不送祝福內容） */
       case "light_one":
         lightOnePieceOnly();
         break;
